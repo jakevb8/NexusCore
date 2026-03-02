@@ -1,12 +1,9 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  output: 'export',
+  trailingSlash: true,
   transpilePackages: ['@nexus-core/shared'],
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['localhost:3000'],
-    },
-  },
 }
 
 export default nextConfig

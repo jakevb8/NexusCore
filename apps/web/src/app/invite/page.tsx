@@ -1,12 +1,13 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/auth-provider'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 
-export default function InvitePage() {
+function InviteForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const { firebaseUser, refreshUser } = useAuth()
@@ -81,5 +82,17 @@ export default function InvitePage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function InvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    }>
+      <InviteForm />
+    </Suspense>
   )
 }
