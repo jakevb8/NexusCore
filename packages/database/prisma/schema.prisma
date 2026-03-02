@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon requires connection pooling via a separate pooled URL for serverless
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPERADMIN
+  ORG_MANAGER
+  EMPLOYEE
+}
+
+enum AssetStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  users     User[]
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  firebaseUid    String       @unique // Firebase Auth UID
+  email          String       @unique
+  displayName    String?
+  role           Role         @default(EMPLOYEE)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditActions   AuditLog[]   @relation("AuditActor")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([firebaseUid])
+  @@map("users")
+}
+
+model Asset {
+  id             String      @id @default(uuid())
+  name           String
+  sku            String      @unique
+  description    String?
+  status         AssetStatus @default(AVAILABLE)
+  assignedTo     String?     // userId of current assignee
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs      AuditLog[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@map("assets")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "ASSET_CREATED", "ASSET_UPDATED", "ASSET_DELETED"
+  actorId   String
+  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
+  changes   Json     // { before: {...}, after: {...} }
+  assetId   String?
+  asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  timestamp DateTime @default(now())
+
+  @@index([assetId])
+  @@index([actorId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+model Invite {
+  id             String   @id @default(uuid())
+  email          String
+  role           Role     @default(EMPLOYEE)
+  organizationId String
+  token          String   @unique @default(uuid())
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([token])
+  @@index([organizationId])
+  @@map("invites")
+}
