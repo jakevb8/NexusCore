@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
   Inject,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
@@ -45,11 +46,27 @@ export class FirebaseAuthGuard implements CanActivate {
         throw new UnauthorizedException('User not found. Complete onboarding first.')
       }
 
+      // Block access if the organization is awaiting approval or was rejected.
+      // SUPERADMIN users bypass this check so they can manage orgs.
+      if (user.role !== 'SUPERADMIN') {
+        if (user.organization.status === 'PENDING') {
+          throw new ForbiddenException(
+            'Your organization is pending approval. You will receive access once an administrator reviews your registration.',
+          )
+        }
+        if (user.organization.status === 'REJECTED') {
+          throw new ForbiddenException(
+            'Your organization registration was not approved. Please contact support.',
+          )
+        }
+      }
+
       // Attach to request for downstream use
       ;(request as any).user = user
       return true
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err
+      if (err instanceof ForbiddenException) throw err
       throw new UnauthorizedException('Invalid or expired token')
     }
   }

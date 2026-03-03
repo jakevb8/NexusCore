@@ -1,11 +1,13 @@
 {
+  "functions": {
+    "source": "apps/api/dist/functions",
+    "codebase": "nexus-core-api",
+    "runtime": "nodejs20",
+    "ignore": []
+  },
   "hosting": {
     "public": "apps/web/out",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "**",
@@ -15,9 +17,7 @@
     "headers": [
       {
         "source": "**/*.@(js|css)",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-        ]
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
       },
       {
         "source": "**",

@@ -3,7 +3,14 @@
 export enum Role {
   SUPERADMIN = 'SUPERADMIN',
   ORG_MANAGER = 'ORG_MANAGER',
-  EMPLOYEE = 'EMPLOYEE',
+  ASSET_MANAGER = 'ASSET_MANAGER',
+  VIEWER = 'VIEWER',
+}
+
+export enum OrgStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  REJECTED = 'REJECTED',
 }
 
 export enum AssetStatus {
@@ -36,6 +43,7 @@ export interface OrganizationDto {
   id: string
   name: string
   slug: string
+  status: OrgStatus
   createdAt: string
 }
 
@@ -124,9 +132,10 @@ export interface PaginationParams {
 // ─── RBAC helpers ─────────────────────────────────────────────────────────────
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
-  [Role.SUPERADMIN]: 3,
-  [Role.ORG_MANAGER]: 2,
-  [Role.EMPLOYEE]: 1,
+  [Role.SUPERADMIN]: 4,
+  [Role.ORG_MANAGER]: 3,
+  [Role.ASSET_MANAGER]: 2,
+  [Role.VIEWER]: 1,
 }
 
 export function hasRole(userRole: Role, required: Role): boolean {

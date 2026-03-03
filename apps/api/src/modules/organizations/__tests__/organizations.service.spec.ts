@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { OrganizationsService } from '../organizations.service'
-import { NotFoundException } from '@nestjs/common'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 
 const mockDb = {
   organization: {
     findUnique: vi.fn(),
     findMany: vi.fn(),
+    update: vi.fn(),
   },
 }
 
@@ -61,6 +62,80 @@ describe('OrganizationsService', () => {
       const result = await service.findAll()
 
       expect(result).toEqual([])
+    })
+  })
+
+  describe('findPending', () => {
+    it('returns organizations with PENDING status', async () => {
+      const pending = [
+        { id: 'org-1', name: 'New Co', status: 'PENDING', _count: { users: 1 }, users: [] },
+      ]
+      mockDb.organization.findMany.mockResolvedValue(pending)
+
+      const result = await service.findPending()
+
+      expect(result).toEqual(pending)
+      expect(mockDb.organization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: 'PENDING' } }),
+      )
+    })
+  })
+
+  describe('approve', () => {
+    it('sets status to ACTIVE for a PENDING org', async () => {
+      const org = { id: 'org-1', status: 'PENDING' }
+      const updated = { ...org, status: 'ACTIVE' }
+      mockDb.organization.findUnique.mockResolvedValue(org)
+      mockDb.organization.update.mockResolvedValue(updated)
+
+      const result = await service.approve('org-1')
+
+      expect(result).toEqual(updated)
+      expect(mockDb.organization.update).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+        data: { status: 'ACTIVE' },
+      })
+    })
+
+    it('throws NotFoundException when org does not exist', async () => {
+      mockDb.organization.findUnique.mockResolvedValue(null)
+
+      await expect(service.approve('missing')).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws BadRequestException when org is already ACTIVE', async () => {
+      mockDb.organization.findUnique.mockResolvedValue({ id: 'org-1', status: 'ACTIVE' })
+
+      await expect(service.approve('org-1')).rejects.toThrow(BadRequestException)
+    })
+  })
+
+  describe('reject', () => {
+    it('sets status to REJECTED for a PENDING org', async () => {
+      const org = { id: 'org-1', status: 'PENDING' }
+      const updated = { ...org, status: 'REJECTED' }
+      mockDb.organization.findUnique.mockResolvedValue(org)
+      mockDb.organization.update.mockResolvedValue(updated)
+
+      const result = await service.reject('org-1')
+
+      expect(result).toEqual(updated)
+      expect(mockDb.organization.update).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+        data: { status: 'REJECTED' },
+      })
+    })
+
+    it('throws NotFoundException when org does not exist', async () => {
+      mockDb.organization.findUnique.mockResolvedValue(null)
+
+      await expect(service.reject('missing')).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws BadRequestException when org is already REJECTED', async () => {
+      mockDb.organization.findUnique.mockResolvedValue({ id: 'org-1', status: 'REJECTED' })
+
+      await expect(service.reject('org-1')).rejects.toThrow(BadRequestException)
     })
   })
 })

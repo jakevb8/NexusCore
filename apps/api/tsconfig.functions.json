@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/functions",
+    "rootDir": "../../",
+    "composite": false,
+    "declarationMap": false,
+    "declaration": false
+  },
+  "include": ["functions/**/*", "src/**/*", "../../packages/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts", "../../packages/database/prisma/seed.ts"]
+}

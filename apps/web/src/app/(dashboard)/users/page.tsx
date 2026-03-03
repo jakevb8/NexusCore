@@ -17,7 +17,7 @@ export default function UsersPage() {
   const { user: me } = useAuth()
   const qc = useQueryClient()
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<Role>(Role.EMPLOYEE)
+  const [inviteRole, setInviteRole] = useState<Role>(Role.ASSET_MANAGER)
   const [showInvite, setShowInvite] = useState(false)
   const isManager = me?.role === Role.ORG_MANAGER || me?.role === Role.SUPERADMIN
 
@@ -64,7 +64,7 @@ export default function UsersPage() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
               <th className="px-6 py-3">Member</th>
               <th className="px-6 py-3">Role</th>
               <th className="px-6 py-3">Joined</th>
@@ -95,7 +95,9 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[u.role]}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[u.role]}`}
+                      >
                         {u.role}
                       </span>
                     </td>
@@ -115,26 +117,30 @@ export default function UsersPage() {
           <div className="rounded-xl border border-gray-200 bg-white">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
                   <th className="px-6 py-3">Email</th>
                   <th className="px-6 py-3">Role</th>
                   <th className="px-6 py-3">Expires</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {invites.filter((i: any) => !i.acceptedAt).map((invite: any) => (
-                  <tr key={invite.id}>
-                    <td className="px-6 py-4 text-gray-700">{invite.email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[invite.role]}`}>
-                        {invite.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {new Date(invite.expiresAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                {invites
+                  .filter((i: any) => !i.acceptedAt)
+                  .map((invite: any) => (
+                    <tr key={invite.id}>
+                      <td className="px-6 py-4 text-gray-700">{invite.email}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[invite.role]}`}
+                        >
+                          {invite.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">
+                        {new Date(invite.expiresAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -148,7 +154,9 @@ export default function UsersPage() {
             <h2 className="mb-4 text-lg font-semibold">Invite a team member</h2>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email address</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Email address
+                </label>
                 <input
                   type="email"
                   value={inviteEmail}
@@ -164,13 +172,16 @@ export default function UsersPage() {
                   onChange={(e) => setInviteRole(e.target.value as Role)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 >
-                  <option value={Role.EMPLOYEE}>Employee</option>
+                  <option value={Role.ASSET_MANAGER}>Asset Manager</option>
                   <option value={Role.ORG_MANAGER}>Org Manager</option>
                 </select>
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setShowInvite(false)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
+              <button
+                onClick={() => setShowInvite(false)}
+                className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
                 Cancel
               </button>
               <button

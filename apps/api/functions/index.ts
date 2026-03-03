@@ -1,12 +1,18 @@
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe, VersioningType } from '@nestjs/common'
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
-import { AppModule } from './app.module'
+import { ExpressAdapter } from '@nestjs/platform-express'
+import { AppModule } from '../src/app.module'
+import { onRequest } from 'firebase-functions/v2/https'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import * as express from 'express'
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+const server = express.default()
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+    logger: ['error', 'warn', 'log'],
+  })
 
   // ─── CORS (must be before helmet) ─────────────────────────────────────────
   const allowedOrigins = [
@@ -17,7 +23,6 @@ async function bootstrap() {
   ]
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. curl, Postman, server-to-server)
       if (!origin) return callback(null, true)
       if (allowedOrigins.includes(origin)) return callback(null, true)
       callback(new Error(`CORS: origin '${origin}' not allowed`))
@@ -31,7 +36,7 @@ async function bootstrap() {
   app.use(helmet())
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
+      windowMs: 15 * 60 * 1000,
       max: 300,
       standardHeaders: true,
       legacyHeaders: false,
@@ -51,22 +56,20 @@ async function bootstrap() {
   app.enableVersioning({ type: VersioningType.URI })
   app.setGlobalPrefix('api')
 
-  // ─── Swagger ──────────────────────────────────────────────────────────────
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Nexus-Core API')
-      .setDescription('Multi-tenant Resource Management System')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build()
-    const document = SwaggerModule.createDocument(app, config)
-    SwaggerModule.setup('api/docs', app, document)
-  }
-
-  const port = process.env.PORT ?? 3001
-  await app.listen(port)
-  console.log(`Nexus-Core API running on http://localhost:${port}/api`)
-  console.log(`Swagger docs at http://localhost:${port}/api/docs`)
+  await app.init()
 }
 
-bootstrap()
+const ready = bootstrap()
+
+export const api = onRequest(
+  {
+    region: 'us-central1',
+    memory: '512MiB',
+    timeoutSeconds: 60,
+    minInstances: 0,
+  },
+  async (req, res) => {
+    await ready
+    server(req as any, res as any)
+  },
+)

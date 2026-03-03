@@ -17,7 +17,8 @@ datasource db {
 enum Role {
   SUPERADMIN
   ORG_MANAGER
-  EMPLOYEE
+  ASSET_MANAGER
+  VIEWER
 }
 
 enum AssetStatus {
@@ -27,16 +28,24 @@ enum AssetStatus {
   RETIRED
 }
 
+enum OrgStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
-  slug      String   @unique
+  slug      String    @unique
+  status    OrgStatus @default(PENDING)
   users     User[]
   assets    Asset[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  invites   Invite[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("organizations")
 }
@@ -46,7 +55,7 @@ model User {
   firebaseUid    String       @unique // Firebase Auth UID
   email          String       @unique
   displayName    String?
-  role           Role         @default(EMPLOYEE)
+  role           Role         @default(VIEWER)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   auditActions   AuditLog[]   @relation("AuditActor")
@@ -93,14 +102,15 @@ model AuditLog {
 }
 
 model Invite {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   email          String
-  role           Role     @default(EMPLOYEE)
+  role           Role         @default(VIEWER)
   organizationId String
-  token          String   @unique @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  token          String       @unique @default(uuid())
   expiresAt      DateTime
   acceptedAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 
   @@index([token])
   @@index([organizationId])

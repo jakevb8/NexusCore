@@ -19,6 +19,7 @@ Nexus-Core is a multi-tenant Resource Management System (RMS). It allows diverse
 Tenant Isolation: Discriminator Column Strategy — every table carries an `organizationId`. Guards enforce a WHERE clause on every query based on the authenticated user's `organizationId`.
 
 Infrastructure:
+
 - Backend: RESTful NestJS API with Swagger/OpenAPI at `/api/docs` (dev only).
 - Frontend: Next.js 15 App Router, compiled to a fully static export (`output: 'export'`). Hosted on Firebase Hosting (Spark / free tier).
 - Database: Neon serverless PostgreSQL, accessed via Prisma ORM with a PrismaClient singleton.
@@ -26,6 +27,7 @@ Infrastructure:
 - Hosting: Firebase Hosting (static) + NestJS API server (designed for Cloud Functions). [CHANGED from Vercel/AWS]
 
 Monorepo layout (TurboRepo):
+
 ```
 NexusCore/
 ├── apps/api/        — NestJS REST API
@@ -102,6 +104,7 @@ enum AssetStatus { AVAILABLE, IN_USE, MAINTENANCE, RETIRED }
 ```
 
 Changes from original spec:
+
 - Added `firebaseUid` and `displayName` to User.
 - Added `Invite` model for token-based user onboarding.
 - `EMPLOYEE` role renamed/replaced with `ASSET_MANAGER` and `VIEWER` with a full `ROLE_HIERARCHY`.
@@ -111,6 +114,7 @@ Changes from original spec:
 4. Feature Requirements (as-built)
 
 FR-01: Identity & Access Management (IAM)
+
 - Firebase Authentication handles JWT issuance (Email/Password + Google). [CHANGED from Auth0/Clerk]
 - `FirebaseAuthGuard` verifies every request's Bearer token against Firebase Admin SDK.
 - `RolesGuard` + `@Roles()` decorator enforces RBAC on each endpoint.
@@ -120,18 +124,21 @@ FR-01: Identity & Access Management (IAM)
 - Subsequent users join via a 7-day invite token (emailed manually; no transactional email service).
 
 FR-02: Asset Lifecycle Management
+
 - Full CRUD on assets with multi-tenant `organizationId` scoping.
 - Pagination, search by name/SKU, and status filtering.
 - Bulk CSV import (`POST /assets/import`) parses name + SKU + status columns.
 - [CHANGED] Real-time WebSocket updates removed — frontend uses TanStack Query polling/refetch on focus.
 
 FR-03: Enterprise Audit Engine
+
 - Every mutation (create/update/delete) calls `AuditService.log()` inline (synchronous) with before/after JSON diffs.
 - [CHANGED] Redis/BullMQ background queue replaced with synchronous inline writes (no Redis dependency).
 - `GET /audit` — org-scoped paginated audit log.
 - `GET /audit/asset/:id` — per-asset audit history (used in the "History" drawer in the UI).
 
 FR-04: Reporting & Analytics
+
 - `GET /reports/org` — utilization rate + asset counts by status for the current org.
 - `GET /reports/system` — system-wide stats (SUPERADMIN only).
 - In-memory cache with 5-minute TTL using a `Map<string, CacheEntry>` in `ReportsService`. [CHANGED from Redis]
@@ -142,21 +149,25 @@ FR-04: Reporting & Analytics
 5. Non-Functional Requirements
 
 Testing:
+
 - Minimum 80% coverage on service logic (Vitest + v8 coverage provider).
 - Coverage scoped to `apps/api/src/modules/**/*.service.ts` only (excludes NestJS DI boilerplate, controllers, decorators).
 - 47 unit tests across 6 service files; actual coverage ~91% statements / 96% branches.
 
 API Standards:
+
 - Standard JSON responses with HTTP 200/201/400/401/403/404/409.
 - Helmet + express-rate-limit applied globally in `main.ts`.
 - Swagger UI at `/api/docs` (dev mode only).
 
 Security:
+
 - Firebase JWT verification on every request (no session cookies).
 - `organizationId` always sourced from the verified JWT user record, never from the request body.
 - All secrets stored in GitHub Actions secrets; never committed to git.
 
 CI/CD (GitHub Actions — `.github/workflows/ci.yml`):
+
 1. Install dependencies (npm ci with frozen lockfile).
 2. Run Vitest with coverage (must pass 80% thresholds).
 3. Run Prisma migration against Neon (`prisma migrate deploy`).
@@ -169,10 +180,11 @@ CI/CD (GitHub Actions — `.github/workflows/ci.yml`):
 
 - Frontend: Firebase Hosting (static), project `nexus-core-rms`. SPA rewrites via `firebase.json`.
 - Backend: NestJS app structured for Firebase Cloud Functions deployment (not yet deployed as a function; currently run locally / on a server).
-- Database: Neon serverless PostgreSQL (`ep-morning-hat-aige9pel-pooler.c-4.us-east-1.aws.neon.tech`).
+- Database: Neon serverless PostgreSQL (connection string stored in `DATABASE_URL` secret, never committed).
 - [CHANGED] Original Phase 5 targeted Vercel/AWS — replaced with Firebase Hosting + Cloud Functions.
 
 Manual one-time setup required:
+
 - Enable Firebase Authentication at https://console.firebase.google.com/project/nexus-core-rms/authentication (click "Get started", enable Email/Password and Google providers).
 
 ---

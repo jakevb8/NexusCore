@@ -1,4 +1,4 @@
-import { Controller, Get, Version } from '@nestjs/common'
+import { Controller, Get, Patch, Param, ParseUUIDPipe } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { OrganizationsService } from './organizations.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -23,5 +23,26 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'List all organizations (SUPERADMIN only)' })
   findAll() {
     return this.orgsService.findAll()
+  }
+
+  @Get('pending')
+  @Roles(Role.SUPERADMIN)
+  @ApiOperation({ summary: 'List organizations awaiting approval (SUPERADMIN only)' })
+  findPending() {
+    return this.orgsService.findPending()
+  }
+
+  @Patch(':id/approve')
+  @Roles(Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Approve a pending organization (SUPERADMIN only)' })
+  approve(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orgsService.approve(id)
+  }
+
+  @Patch(':id/reject')
+  @Roles(Role.SUPERADMIN)
+  @ApiOperation({ summary: 'Reject a pending organization (SUPERADMIN only)' })
+  reject(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orgsService.reject(id)
   }
 }
