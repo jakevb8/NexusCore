@@ -4,9 +4,24 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import express, { Request, Response } from 'express'
+import * as http from 'http'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  const port = process.env.PORT ?? 3001
+
+  // ─── Pre-boot Express server ───────────────────────────────────────────────
+  // Start a minimal HTTP server immediately so Railway's healthcheck never
+  // times out waiting for NestJS to fully initialise (Firebase Admin + Prisma
+  // can add several seconds to startup on a cold container).
+  const preBootApp = express()
+  preBootApp.get('/api/health', (_req: Request, res: Response) => res.json({ status: 'starting' }))
+  const preBootServer = http.createServer(preBootApp)
+  await new Promise<void>((resolve) => preBootServer.listen(port, () => resolve()))
+  console.log(`[pre-boot] HTTP server listening on port ${port}`)
+
+  // ─── NestJS bootstrap ─────────────────────────────────────────────────────
+  const app = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error'] })
 
   // ─── CORS (must be before helmet) ─────────────────────────────────────────
   const allowedOrigins = [
@@ -63,14 +78,22 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document)
   }
 
-  // ─── Health check (used by Railway) ──────────────────────────────────────
+  // ─── Health check ─────────────────────────────────────────────────────────
   const httpAdapter = app.getHttpAdapter()
   httpAdapter.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok' }))
 
-  const port = process.env.PORT ?? 3001
+  // Hand the already-bound port to NestJS by closing the pre-boot server first,
+  // then letting Nest bind to the same port.
+  await new Promise<void>((resolve, reject) =>
+    preBootServer.close((err) => (err ? reject(err) : resolve())),
+  )
+
   await app.listen(port)
   console.log(`Nexus-Core API running on http://localhost:${port}/api`)
   console.log(`Swagger docs at http://localhost:${port}/api/docs`)
 }
 
-bootstrap()
+bootstrap().catch((err) => {
+  console.error('Fatal bootstrap error:', err)
+  process.exit(1)
+})

@@ -18,14 +18,16 @@ import * as admin from 'firebase-admin'
 
         const projectId = config.get<string>('FIREBASE_PROJECT_ID')
         const clientEmail = config.get<string>('FIREBASE_CLIENT_EMAIL')
-        const privateKey = config
-          .get<string>('FIREBASE_PRIVATE_KEY')
-          ?.replace(/\\n/g, '\n')
+        const privateKey = config.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n')
 
         if (!projectId || !clientEmail || !privateKey) {
-          throw new Error(
-            'Firebase Admin credentials missing. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.',
-          )
+          const msg =
+            'Firebase Admin credentials missing. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.'
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error(msg)
+          }
+          logger.warn(msg + ' Skipping Firebase Admin init (non-production).')
+          return null
         }
 
         const app = admin.initializeApp({
