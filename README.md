@@ -11,10 +11,10 @@ Multi-tenant Resource Management SaaS built as a full-stack portfolio project. O
 | Layer    | Technology                                                                         |
 | -------- | ---------------------------------------------------------------------------------- |
 | Frontend | Next.js 15 (static export), Tailwind CSS v4, TanStack Query, react-hook-form + Zod |
-| Backend  | NestJS 10 (REST API), deployed as Firebase Cloud Functions (Gen 2)                 |
+| Backend  | NestJS 10 (REST API), deployed to Railway                                          |
 | Database | PostgreSQL on Neon (serverless), Prisma ORM                                        |
-| Auth     | Firebase Authentication (Email/Password + Google)                                  |
-| Hosting  | Firebase Hosting (frontend) + Cloud Functions (API)                                |
+| Auth     | Firebase Authentication (Google sign-in)                                           |
+| Hosting  | Firebase Hosting (frontend) + Railway (API)                                        |
 | Monorepo | TurboRepo with shared `packages/`                                                  |
 | CI/CD    | GitHub Actions — test → migrate → build → deploy on every push to `main`           |
 
@@ -39,7 +39,7 @@ Multi-tenant Resource Management SaaS built as a full-stack portfolio project. O
 ```
 NexusCore/
 ├── apps/
-│   ├── api/          — NestJS REST API (Firebase Cloud Functions target)
+│   ├── api/          — NestJS REST API (deployed to Railway)
 │   └── web/          — Next.js 15 static export (Firebase Hosting)
 ├── packages/
 │   ├── database/     — Prisma schema, PrismaClient singleton, seed script
@@ -142,7 +142,8 @@ The NestJS API is hosted on **Railway** (free tier). Railway auto-deploys from t
 
 1. Go to [railway.com](https://railway.com) → New Project → Deploy from GitHub repo
 2. Select this repo — Railway will detect the `Dockerfile` automatically
-3. Add the following environment variables in the Railway dashboard (same values as `apps/api/.env.example`):
+3. In the service Settings → Networking, note the public port (default is **8080**). Do **not** add a `PORT` variable — Railway injects `PORT` automatically and it must match what the networking config exposes.
+4. Add the following environment variables in the Railway dashboard:
    - `DATABASE_URL`
    - `DATABASE_DIRECT_URL`
    - `FIREBASE_PROJECT_ID`
@@ -150,9 +151,9 @@ The NestJS API is hosted on **Railway** (free tier). Railway auto-deploys from t
    - `FIREBASE_PRIVATE_KEY`
    - `FRONTEND_URL` → set to `https://nexus-core-rms.web.app`
    - `NODE_ENV` → `production`
-4. Copy the Railway public URL (e.g. `https://nexuscore-api-production.up.railway.app`)
-5. Set `NEXT_PUBLIC_API_URL` in GitHub Actions secrets to `<railway-url>/api/v1`
-6. Redeploy the frontend from the Actions tab so it picks up the new API URL
+5. Copy the Railway public URL (e.g. `https://nexuscore-api-production.up.railway.app`)
+6. Set `NEXT_PUBLIC_API_URL` in GitHub Actions secrets to `<railway-url>/api/v1`
+7. Redeploy the frontend from the Actions tab so it picks up the new API URL
 
 ### Required GitHub Secrets
 
@@ -171,25 +172,25 @@ The NestJS API is hosted on **Railway** (free tier). Railway auto-deploys from t
 
 All routes are prefixed `/api/v1` and require a Firebase ID token in the `Authorization: Bearer <token>` header unless marked public.
 
-| Method | Path                         | Role           | Description                                  |
-| ------ | ---------------------------- | -------------- | -------------------------------------------- |
-| POST   | `/auth/register`             | authenticated  | Register a new organization (starts PENDING) |
-| POST   | `/auth/accept-invite`        | authenticated  | Accept an org invite                         |
-| GET    | `/auth/me`                   | authenticated  | Get current user                             |
-| GET    | `/organizations/me`          | any            | Get own organization                         |
-| GET    | `/organizations`             | SUPERADMIN     | List all organizations                       |
-| GET    | `/organizations/pending`     | SUPERADMIN     | List pending organizations                   |
-| PATCH  | `/organizations/:id/approve` | SUPERADMIN     | Approve a pending org                        |
-| PATCH  | `/organizations/:id/reject`  | SUPERADMIN     | Reject a pending org                         |
-| GET    | `/assets`                    | VIEWER+        | List assets (paginated, searchable)          |
-| POST   | `/assets`                    | ASSET_MANAGER+ | Create an asset                              |
-| PATCH  | `/assets/:id`                | ASSET_MANAGER+ | Update an asset                              |
-| DELETE | `/assets/:id`                | ORG_MANAGER+   | Delete an asset                              |
-| POST   | `/assets/import`             | ASSET_MANAGER+ | Bulk import via CSV                          |
-| GET    | `/users`                     | ORG_MANAGER+   | List org members                             |
-| POST   | `/users/invite`              | ORG_MANAGER+   | Invite a new member                          |
-| GET    | `/reports/summary`           | VIEWER+        | Asset utilization summary                    |
-| GET    | `/audit-logs`                | ORG_MANAGER+   | Paginated audit log                          |
+| Method | Path                         | Role                    | Description                                  |
+| ------ | ---------------------------- | ----------------------- | -------------------------------------------- |
+| POST   | `/auth/register`             | Firebase token (public) | Register a new organization (starts PENDING) |
+| POST   | `/auth/accept-invite`        | Firebase token (public) | Accept an org invite                         |
+| GET    | `/auth/me`                   | any DB user             | Get current user                             |
+| GET    | `/organizations/me`          | any                     | Get own organization                         |
+| GET    | `/organizations`             | SUPERADMIN              | List all organizations                       |
+| GET    | `/organizations/pending`     | SUPERADMIN              | List pending organizations                   |
+| PATCH  | `/organizations/:id/approve` | SUPERADMIN              | Approve a pending org                        |
+| PATCH  | `/organizations/:id/reject`  | SUPERADMIN              | Reject a pending org                         |
+| GET    | `/assets`                    | VIEWER+                 | List assets (paginated, searchable)          |
+| POST   | `/assets`                    | ASSET_MANAGER+          | Create an asset                              |
+| PATCH  | `/assets/:id`                | ASSET_MANAGER+          | Update an asset                              |
+| DELETE | `/assets/:id`                | ORG_MANAGER+            | Delete an asset                              |
+| POST   | `/assets/import`             | ASSET_MANAGER+          | Bulk import via CSV                          |
+| GET    | `/users`                     | ORG_MANAGER+            | List org members                             |
+| POST   | `/users/invite`              | ORG_MANAGER+            | Invite a new member                          |
+| GET    | `/reports/summary`           | VIEWER+                 | Asset utilization summary                    |
+| GET    | `/audit-logs`                | ORG_MANAGER+            | Paginated audit log                          |
 
 Swagger UI is available at `/api/docs` in non-production environments.
 

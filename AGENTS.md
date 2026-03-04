@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-Multi-tenant Resource Management SaaS (NexusCore). TurboRepo monorepo with a Next.js 15 static frontend and NestJS REST API, backed by Neon PostgreSQL via Prisma, Firebase Auth, and deployed to Firebase Hosting + Cloud Functions.
+Multi-tenant Resource Management SaaS (NexusCore). TurboRepo monorepo with a Next.js 15 static frontend and NestJS REST API, backed by Neon PostgreSQL via Prisma, Firebase Auth, and deployed to Firebase Hosting + Railway.
 
 ## Monorepo Structure
 
 ```
 NexusCore/
-├── apps/api/          — NestJS REST API (Firebase Cloud Functions target)
+├── apps/api/          — NestJS REST API (deployed to Railway)
 ├── apps/web/          — Next.js 15 static export (Firebase Hosting)
 ├── packages/database/ — Prisma schema, PrismaClient singleton, seed script
 └── packages/shared/   — DTOs, enums, ROLE_HIERARCHY, hasRole()
@@ -27,7 +27,7 @@ npm run format         # prettier format everything
 # API only
 cd apps/api
 npm run dev            # nest start --watch
-npm run build          # nest build → dist/
+npm run build          # prisma generate + nest build → dist/main.js
 npm run test           # vitest run
 npm run test:coverage  # vitest run --coverage (must pass 80% threshold)
 npm run type-check     # tsc --noEmit
@@ -46,7 +46,9 @@ npx prisma studio --schema=packages/database/prisma/schema.prisma
 
 ## Architecture Decisions
 
-- **Auth**: Firebase Authentication only (Email/Password + Google). The NestJS `FirebaseAuthGuard` is registered as a global `APP_GUARD` — every route is protected unless decorated with `@Public()`.
+- **Auth**: Firebase Authentication — **Google sign-in only**. Email/Password is not enabled. Both Firebase accounts use Google OAuth exclusively.
+- **FirebaseAuthGuard**: Registered as a global `APP_GUARD` in **`AppModule`** (not in a feature module) — this is required so the `Reflector` has full metadata context and `@Public()` is respected. Routes are protected unless decorated with `@Public()`.
+- **Public registration endpoints**: `POST /auth/register` and `POST /auth/accept-invite` are `@Public()` because the user has no DB record yet. They verify the Firebase token themselves inside `AuthService.verifyToken()`.
 - **Multi-tenancy**: Discriminator column — every query is scoped by `organizationId` sourced from the verified JWT user, never from the request body.
 - **RBAC**: `SUPERADMIN > ORG_MANAGER > ASSET_MANAGER > VIEWER`. Use `@Roles(Role.X)` + `hasRole()` from `@nexus-core/shared`.
 - **No Redis**: Audit logs are written synchronously inline. Reports use an in-memory `Map` cache with 5-min TTL.
@@ -56,7 +58,7 @@ npx prisma studio --schema=packages/database/prisma/schema.prisma
 ## Deployment
 
 - **Frontend**: Firebase Hosting, project `nexus-core-rms`. Deployed automatically by CI on push to `main`.
-- **Backend**: Railway (free tier). Deployed via `Dockerfile` at repo root. Entry point: `apps/api/src/main.ts` → `apps/api/dist/apps/api/src/main`. Public URL: `https://nexus-coreapi-production.up.railway.app`.
+- **Backend**: Railway (free tier). Deployed via `Dockerfile` at repo root. Webpack bundles the NestJS app into `apps/api/dist/main.js`. Public URL: `https://nexus-coreapi-production.up.railway.app`.
 - **Database**: Neon serverless PostgreSQL. Connection string in `DATABASE_URL` / `DATABASE_DIRECT_URL` secrets.
 - **CI/CD**: `.github/workflows/ci.yml` — test → migrate → build web → deploy hosting.
 
@@ -71,10 +73,10 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=nexus-core-rms
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
-NEXT_PUBLIC_API_URL=https://us-central1-nexus-core-rms.cloudfunctions.net/api/v1
+NEXT_PUBLIC_API_URL=https://nexus-coreapi-production.up.railway.app/api/v1
 ```
 
-### apps/api/.env.local (backend / Cloud Functions env)
+### apps/api/.env.local (backend)
 
 ```
 DATABASE_URL=
@@ -101,7 +103,8 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 
 - Project ID: `nexus-core-rms`
 - CLI installed; authenticated via `firebase login`
-- `firebase.json` controls hosting (static from `apps/web/out/`) + functions
+- `firebase.json` controls hosting (static from `apps/web/out/`)
+- **Google sign-in only** — do not attempt Email/Password login
 
 ## Testing
 
@@ -109,6 +112,7 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 - Scope: `apps/api/src/modules/**/*.service.ts` only
 - Threshold: 80% statements, 80% branches (enforced in CI)
 - Run: `npx vitest run --config apps/api/vitest.config.ts --coverage`
+- When service signatures change, update the corresponding `__tests__/*.spec.ts` mocks to match
 
 ## Code Conventions
 
@@ -121,9 +125,23 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 
 ## Common Pitfalls
 
+- **`APP_GUARD` must be in `AppModule`**, not a feature module. Registering `FirebaseAuthGuard` via `APP_GUARD` inside `AuthModule` causes the `Reflector` to lose metadata context, making `@Public()` silently ignored.
+- **`@Public()` endpoints that need Firebase identity** (register, accept-invite) must call `firebaseApp.auth().verifyIdToken(bearerToken)` manually inside the service. Do not rely on the guard to populate `request.user` for these routes.
+- **Railway port**: Do NOT set a `PORT` variable in Railway Variables. Railway injects `PORT` automatically to match the port shown in Settings → Networking (default 8080). Adding `PORT=3001` causes a mismatch where the app binds to 3001 but Railway routes external traffic to 8080 → 502 on every request.
+- **Railway uses the Dockerfile** when `railway.json` specifies `"builder": "DOCKERFILE"`. The webpack build outputs `apps/api/dist/main.js` (flat, not `dist/apps/api/src/main.js`).
+- **`nest build` (webpack) entry**: With `webpack: true` in `nest-cli.json` and the custom `webpack.config.js`, the output is a single `dist/main.js`. The start script must be `node dist/main`.
+- **`@nexus-core/*` packages** must be bundled inline by webpack (not treated as externals) because they are TypeScript source files that Node cannot `require()` at runtime. See `apps/api/webpack.config.js`.
+- **Prisma native binary**: `prisma generate` must run before `nest build`. It is included in the `build` script: `"build": "prisma generate --schema=... && nest build"`. The Dockerfile also runs it in the builder stage.
+- **Stale Prisma LSP types**: After schema changes, run `npx prisma generate --schema=packages/database/prisma/schema.prisma` from the repo root. The LSP may show false errors — always verify with `tsc --noEmit`.
+- **PostgreSQL error 55P04**: `ALTER TYPE ADD VALUE` and any `UPDATE` using the new enum value cannot be in the same transaction. Split into two migration files.
 - `FIREBASE_PRIVATE_KEY` in env must have literal `\n` replaced: `.replace(/\\n/g, '\n')` is done in `firebase.module.ts` already.
 - Prisma schema is in `packages/database/prisma/schema.prisma`, not in `apps/api/`.
 - `organizationId` must NEVER come from the request body — always from `request.user.organizationId`.
-- Cloud Functions wraps the NestJS Express app via `onRequest` — do not call `app.listen()` in the functions entry point.
 - After completing any task that modifies files, always commit and push to the current branch without asking for confirmation.
 - Re-run `npx prisma generate --schema=packages/database/prisma/schema.prisma` whenever the Prisma schema changes to keep the generated client and compiled declaration files in sync.
+
+When making function calls using tools that accept array or object parameters ensure those are structured using JSON. For example:
+
+```json
+[{ "color": "orange", "options": { "option_key_1": true, "option_key_2": "value" } }]
+```
