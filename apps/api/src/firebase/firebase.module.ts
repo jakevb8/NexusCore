@@ -16,9 +16,12 @@ import * as admin from 'firebase-admin'
           return admin.app()
         }
 
-        const projectId = config.get<string>('FIREBASE_PROJECT_ID')
-        const clientEmail = config.get<string>('FIREBASE_CLIENT_EMAIL')
-        const privateKey = config.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n')
+        const projectId = config.get<string>('FIREBASE_PROJECT_ID')?.replace(/^"|"$/g, '')
+        const clientEmail = config.get<string>('FIREBASE_CLIENT_EMAIL')?.replace(/^"|"$/g, '')
+        const privateKey = config
+          .get<string>('FIREBASE_PRIVATE_KEY')
+          ?.replace(/^"|"$/g, '')
+          .replace(/\\n/g, '\n')
 
         if (!projectId || !clientEmail || !privateKey) {
           const msg =
