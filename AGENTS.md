@@ -56,7 +56,7 @@ npx prisma studio --schema=packages/database/prisma/schema.prisma
 ## Deployment
 
 - **Frontend**: Firebase Hosting, project `nexus-core-rms`. Deployed automatically by CI on push to `main`.
-- **Backend**: Railway (free tier). Deployed via `Dockerfile` at repo root. Entry point: `apps/api/src/main.ts` → `apps/api/dist/main`.
+- **Backend**: Railway (free tier). Deployed via `Dockerfile` at repo root. Entry point: `apps/api/src/main.ts` → `apps/api/dist/main`. Public URL: `https://nexus-coreapi-production.up.railway.app`.
 - **Database**: Neon serverless PostgreSQL. Connection string in `DATABASE_URL` / `DATABASE_DIRECT_URL` secrets.
 - **CI/CD**: `.github/workflows/ci.yml` — test → migrate → build web → deploy hosting.
 
