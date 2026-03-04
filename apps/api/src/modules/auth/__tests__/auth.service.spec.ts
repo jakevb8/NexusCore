@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthService } from '../auth.service'
-import { ConflictException, NotFoundException } from '@nestjs/common'
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common'
 
 const mockTx = {
   organization: { create: vi.fn() },
@@ -21,7 +21,15 @@ const mockDb = {
   $transaction: vi.fn((fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx)),
 }
 
-const mockFirebaseApp = {}
+// Mock Firebase Admin app — verifyIdToken returns a decoded token
+const mockVerifyIdToken = vi.fn()
+const mockFirebaseApp = {
+  auth: () => ({ verifyIdToken: mockVerifyIdToken }),
+}
+
+// Helpers
+const VALID_TOKEN = 'valid-firebase-token'
+const makeDecoded = (uid: string, email: string) => ({ uid, email })
 
 describe('AuthService', () => {
   let service: AuthService
@@ -33,6 +41,7 @@ describe('AuthService', () => {
 
   describe('registerNewOrganization', () => {
     it('creates org and user in a transaction', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('firebase-uid-1', 'admin@acme.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue(null)
 
@@ -41,7 +50,7 @@ describe('AuthService', () => {
       mockTx.organization.create.mockResolvedValue(org)
       mockTx.user.create.mockResolvedValue(user)
 
-      const result = await service.registerNewOrganization('firebase-uid-1', 'admin@acme.com', {
+      const result = await service.registerNewOrganization(VALID_TOKEN, {
         organizationName: 'Acme',
         organizationSlug: 'acme',
         displayName: 'Admin',
@@ -63,11 +72,23 @@ describe('AuthService', () => {
       )
     })
 
+    it('throws UnauthorizedException if Firebase token is invalid', async () => {
+      mockVerifyIdToken.mockRejectedValue(new Error('Token expired'))
+
+      await expect(
+        service.registerNewOrganization('bad-token', {
+          organizationName: 'Acme',
+          organizationSlug: 'acme',
+        }),
+      ).rejects.toThrow(UnauthorizedException)
+    })
+
     it('throws ConflictException if Firebase UID already registered', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('firebase-uid-1', 'admin@acme.com'))
       mockDb.user.findUnique.mockResolvedValue({ id: 'existing-user' })
 
       await expect(
-        service.registerNewOrganization('firebase-uid-1', 'admin@acme.com', {
+        service.registerNewOrganization(VALID_TOKEN, {
           organizationName: 'Acme',
           organizationSlug: 'acme',
         }),
@@ -75,11 +96,12 @@ describe('AuthService', () => {
     })
 
     it('throws ConflictException if org slug is already taken', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('firebase-uid-1', 'admin@acme.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue({ id: 'org-existing' })
 
       await expect(
-        service.registerNewOrganization('firebase-uid-1', 'admin@acme.com', {
+        service.registerNewOrganization(VALID_TOKEN, {
           organizationName: 'Acme',
           organizationSlug: 'taken-slug',
         }),
@@ -87,12 +109,13 @@ describe('AuthService', () => {
     })
 
     it('sets displayName to null when not provided', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'a@b.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue(null)
       mockTx.organization.create.mockResolvedValue({ id: 'org-1' })
       mockTx.user.create.mockResolvedValue({ id: 'user-1' })
 
-      await service.registerNewOrganization('uid', 'a@b.com', {
+      await service.registerNewOrganization(VALID_TOKEN, {
         organizationName: 'Acme',
         organizationSlug: 'acme',
       })
@@ -117,13 +140,14 @@ describe('AuthService', () => {
     }
 
     it('creates user and marks invite as accepted', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('firebase-uid-2', 'bob@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue(validInvite)
       mockDb.user.findUnique.mockResolvedValue(null)
       const newUser = { id: 'user-2', email: 'bob@acme.com', role: 'VIEWER' }
       mockTx.user.create.mockResolvedValue(newUser)
       mockTx.invite.update.mockResolvedValue({})
 
-      const result = await service.acceptInvite('firebase-uid-2', 'bob@acme.com', {
+      const result = await service.acceptInvite(VALID_TOKEN, {
         token: 'tok-abc',
         displayName: 'Bob',
       })
@@ -137,54 +161,71 @@ describe('AuthService', () => {
       )
     })
 
+    it('throws UnauthorizedException if Firebase token is invalid', async () => {
+      mockVerifyIdToken.mockRejectedValue(new Error('Token expired'))
+
+      await expect(service.acceptInvite('bad-token', { token: 'tok-abc' })).rejects.toThrow(
+        UnauthorizedException,
+      )
+    })
+
     it('throws NotFoundException when invite token not found', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'bob@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue(null)
 
-      await expect(
-        service.acceptInvite('uid', 'bob@acme.com', { token: 'bad-token' }),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.acceptInvite(VALID_TOKEN, { token: 'bad-token' })).rejects.toThrow(
+        NotFoundException,
+      )
     })
 
     it('throws ConflictException when invite already used', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'bob@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue({ ...validInvite, acceptedAt: new Date() })
 
-      await expect(
-        service.acceptInvite('uid', 'bob@acme.com', { token: 'tok-abc' }),
-      ).rejects.toThrow(ConflictException)
+      await expect(service.acceptInvite(VALID_TOKEN, { token: 'tok-abc' })).rejects.toThrow(
+        ConflictException,
+      )
     })
 
     it('throws ConflictException when invite has expired', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'bob@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue({
         ...validInvite,
         expiresAt: new Date(Date.now() - 1000),
       })
 
-      await expect(
-        service.acceptInvite('uid', 'bob@acme.com', { token: 'tok-abc' }),
-      ).rejects.toThrow(ConflictException)
+      await expect(service.acceptInvite(VALID_TOKEN, { token: 'tok-abc' })).rejects.toThrow(
+        ConflictException,
+      )
     })
 
     it('throws ConflictException when invite email does not match', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'other@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue(validInvite)
 
-      await expect(
-        service.acceptInvite('uid', 'other@acme.com', { token: 'tok-abc' }),
-      ).rejects.toThrow(ConflictException)
+      await expect(service.acceptInvite(VALID_TOKEN, { token: 'tok-abc' })).rejects.toThrow(
+        ConflictException,
+      )
     })
 
     it('throws ConflictException when Firebase UID already registered', async () => {
+      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'bob@acme.com'))
       mockDb.invite.findUnique.mockResolvedValue(validInvite)
       mockDb.user.findUnique.mockResolvedValue({ id: 'existing' })
 
-      await expect(
-        service.acceptInvite('uid', 'bob@acme.com', { token: 'tok-abc' }),
-      ).rejects.toThrow(ConflictException)
+      await expect(service.acceptInvite(VALID_TOKEN, { token: 'tok-abc' })).rejects.toThrow(
+        ConflictException,
+      )
     })
   })
 
   describe('getMe', () => {
     it('returns user with organization when found', async () => {
-      const user = { id: 'user-1', email: 'a@b.com', organization: { id: 'org-1', name: 'Acme', slug: 'acme' } }
+      const user = {
+        id: 'user-1',
+        email: 'a@b.com',
+        organization: { id: 'org-1', name: 'Acme', slug: 'acme' },
+      }
       mockDb.user.findUnique.mockResolvedValue(user)
 
       const result = await service.getMe('user-1')
