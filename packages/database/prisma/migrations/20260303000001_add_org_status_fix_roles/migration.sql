@@ -8,21 +8,10 @@ ALTER TABLE "organizations" ADD COLUMN "status" "OrgStatus" NOT NULL DEFAULT 'AC
 ALTER TABLE "invites" ADD CONSTRAINT "invites_organizationId_fkey"
   FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Rename EMPLOYEE -> ASSET_MANAGER and add VIEWER to Role enum
--- PostgreSQL doesn't support renaming enum values directly; we add new values first,
--- migrate data, then drop the old value.
-ALTER TYPE "Role" ADD VALUE 'ASSET_MANAGER';
-ALTER TYPE "Role" ADD VALUE 'VIEWER';
-
--- Migrate existing EMPLOYEE rows to VIEWER (least-privilege safe default)
-UPDATE "users" SET "role" = 'VIEWER' WHERE "role" = 'EMPLOYEE';
-UPDATE "invites" SET "role" = 'VIEWER' WHERE "role" = 'EMPLOYEE';
-
--- Change defaults
-ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'VIEWER';
-ALTER TABLE "invites" ALTER COLUMN "role" SET DEFAULT 'VIEWER';
-
--- Note: PostgreSQL does not allow dropping enum values that may still be referenced.
--- The EMPLOYEE value is kept in the enum type for backward compatibility but is no
--- longer used in application code or defaults. A future cleanup migration can remove
--- it once confirmed no rows reference it.
+-- Add new Role enum values.
+-- NOTE: PostgreSQL does not allow using a newly-added enum value in the same transaction
+-- where it was added (error 55P04). The UPDATE and SET DEFAULT statements that reference
+-- ASSET_MANAGER and VIEWER are therefore placed in the next migration (000002) which runs
+-- in a separate transaction after this one has been committed.
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'ASSET_MANAGER';
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'VIEWER';
