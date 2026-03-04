@@ -149,7 +149,7 @@ Deployment is fully automated via GitHub Actions on push to `main`. The pipeline
 | `NEXT_PUBLIC_API_URL`      | Deployed API base URL                                              |
 | `CODECOV_TOKEN`            | (Optional) Codecov upload token                                    |
 
-> **Note:** Firebase Cloud Functions requires the Blaze (pay-as-you-go) plan. The free Spark plan does not support Cloud Functions deployment. The API code and wiring are complete; upgrade the project at [console.firebase.google.com](https://console.firebase.google.com) when ready.
+> **Note:** Firebase Cloud Functions requires the Blaze (pay-as-you-go) plan. This project runs on the free Spark plan, so the API is not currently deployed. The NestJS code, Cloud Functions wiring, and CI steps are all complete and ready — upgrading the Firebase project at [console.firebase.google.com](https://console.firebase.google.com/project/nexus-core-rms/usage/details) is the only step needed to enable live API deployment.
 
 ---
 

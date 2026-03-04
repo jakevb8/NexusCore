@@ -87,12 +87,17 @@ jobs:
           channelId: live
           projectId: nexus-core-rms
 
-      - name: Build API for Cloud Functions
-        run: |
-          cd apps/api
-          npm run build
-
-      - name: Deploy API to Cloud Functions
-        run: npx firebase-tools deploy --only functions --project nexus-core-rms --token "$FIREBASE_TOKEN"
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      # Cloud Functions deployment requires Firebase Blaze plan (pay-as-you-go).
+      # This project runs on the free Spark plan so functions deployment is skipped.
+      # To enable: upgrade to Blaze at https://console.firebase.google.com/project/nexus-core-rms/usage/details
+      # then uncomment the steps below and add FIREBASE_TOKEN to GitHub secrets.
+      #
+      # - name: Build API for Cloud Functions
+      #   run: |
+      #     cd apps/api
+      #     npm run build
+      #
+      # - name: Deploy API to Cloud Functions
+      #   run: npx firebase-tools deploy --only functions --project nexus-core-rms --token "$FIREBASE_TOKEN"
+      #   env:
+      #     FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
