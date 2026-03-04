@@ -82,42 +82,6 @@ async function bootstrap() {
   const httpAdapter = app.getHttpAdapter()
   httpAdapter.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok' }))
 
-  // ─── Temporary Firebase diagnostic (remove after debugging) ───────────────
-  httpAdapter.get('/api/debug/firebase', async (_req: any, res: any) => {
-    try {
-      const adminModule = await import('firebase-admin')
-      const apps = adminModule.default.apps
-      if (!apps.length) {
-        return res.json({ initialized: false, reason: 'No Firebase Admin apps' })
-      }
-      const app = apps[0]!
-      const appName = app.name
-      const options = app.options as any
-      const projectId =
-        options?.credential?.projectId ?? process.env.FIREBASE_PROJECT_ID ?? 'unknown'
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? 'missing'
-      const privateKeySet = !!process.env.FIREBASE_PRIVATE_KEY
-      const privateKeyStarts = process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30) ?? 'missing'
-      // Try a dummy token verify to get the real error message
-      try {
-        await app.auth().verifyIdToken('dummy.token.here')
-      } catch (e: any) {
-        return res.json({
-          initialized: true,
-          appName,
-          projectId,
-          clientEmail,
-          privateKeySet,
-          privateKeyStarts,
-          verifyError: e.message ?? String(e),
-        })
-      }
-      return res.json({ initialized: true, appName, projectId })
-    } catch (e: any) {
-      return res.json({ error: e.message ?? String(e) })
-    }
-  })
-
   // Hand the already-bound port to NestJS by closing the pre-boot server first,
   // then letting Nest bind to the same port.
   await new Promise<void>((resolve, reject) =>

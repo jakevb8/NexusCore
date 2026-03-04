@@ -74,7 +74,7 @@ export default function OnboardingPage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Jane Smith"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
           </div>
           <div>
@@ -87,7 +87,7 @@ export default function OnboardingPage() {
               onChange={(e) => handleOrgNameChange(e.target.value)}
               required
               placeholder="Acme Corp"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
           </div>
           <div>
@@ -106,7 +106,7 @@ export default function OnboardingPage() {
                 pattern="[a-z0-9\-]+"
                 minLength={3}
                 placeholder="acme-corp"
-                className="flex-1 rounded-r-lg px-3 py-2 text-sm focus:outline-none"
+                className="flex-1 rounded-r-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
               />
             </div>
             <p className="mt-1 text-xs text-gray-400">
