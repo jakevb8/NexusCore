@@ -7,7 +7,7 @@ import api from '@/lib/api'
 import { toast } from 'sonner'
 
 export default function OnboardingPage() {
-  const { firebaseUser, refreshUser } = useAuth()
+  const { firebaseUser, refreshUser, logout } = useAuth()
   const router = useRouter()
   const [orgName, setOrgName] = useState('')
   const [slug, setSlug] = useState('')
@@ -52,8 +52,19 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-bold text-gray-900">Set up your organization</h1>
-        <p className="mb-6 text-sm text-gray-500">You&apos;ll be the admin of this workspace</p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="mb-1 text-2xl font-bold text-gray-900">Set up your organization</h1>
+            <p className="text-sm text-gray-500">You&apos;ll be the admin of this workspace</p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="text-sm text-gray-400 hover:text-gray-600"
+          >
+            Sign out
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

@@ -14,18 +14,20 @@ const navItems = [
 ]
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, loading, needsOnboarding, logout } = useAuth()
+  const { user, loading, needsOnboarding, pendingApproval, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
     if (loading) return
-    if (!user && !needsOnboarding) {
+    if (pendingApproval) {
+      router.push('/pending-approval')
+    } else if (!user && !needsOnboarding) {
       router.push('/login')
     } else if (needsOnboarding) {
       router.push('/onboarding')
     }
-  }, [user, loading, needsOnboarding, router])
+  }, [user, loading, needsOnboarding, pendingApproval, router])
 
   if (loading) {
     return (
@@ -46,14 +48,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="px-3 py-3">
-          <p className="px-3 text-xs font-medium uppercase tracking-wider text-gray-400">
+          <p className="px-3 text-xs font-medium tracking-wider text-gray-400 uppercase">
             {user.organization.name}
           </p>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 pb-4">
           {navItems.map((item) => {
-            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+            const active =
+              pathname === item.href ||
+              (item.href !== '/dashboard' && pathname.startsWith(item.href))
             return (
               <Link
                 key={item.href}
