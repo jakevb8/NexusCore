@@ -82,6 +82,29 @@ async function bootstrap() {
   const httpAdapter = app.getHttpAdapter()
   httpAdapter.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok' }))
 
+  // ─── Temporary Firebase diagnostic (remove after debugging) ───────────────
+  httpAdapter.get('/api/debug/firebase', async (_req: any, res: any) => {
+    try {
+      const adminModule = await import('firebase-admin')
+      const apps = adminModule.default.apps
+      if (!apps.length) {
+        return res.json({ initialized: false, reason: 'No Firebase Admin apps' })
+      }
+      const projectId = apps[0]?.options?.credential
+        ? ((apps[0].options as any).projectId ?? 'unknown')
+        : 'no credential'
+      // Try a dummy token verify to get the real error
+      try {
+        await apps[0]!.auth().verifyIdToken('dummy')
+      } catch (e: any) {
+        return res.json({ initialized: true, projectId, verifyError: e.message ?? String(e) })
+      }
+      return res.json({ initialized: true, projectId })
+    } catch (e: any) {
+      return res.json({ error: e.message ?? String(e) })
+    }
+  })
+
   // Hand the already-bound port to NestJS by closing the pre-boot server first,
   // then letting Nest bind to the same port.
   await new Promise<void>((resolve, reject) =>
