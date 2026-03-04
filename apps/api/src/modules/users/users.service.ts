@@ -9,10 +9,14 @@ import {
 import { PrismaClient } from '@nexus-core/database'
 import { Role } from '@nexus-core/shared'
 import { addDays } from 'date-fns'
+import { EmailService } from '../email/email.service'
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject('PRISMA') private readonly db: PrismaClient) {}
+  constructor(
+    @Inject('PRISMA') private readonly db: PrismaClient,
+    private readonly emailService: EmailService,
+  ) {}
 
   async findAll(organizationId: string) {
     return this.db.user.findMany({
@@ -28,7 +32,7 @@ export class UsersService {
     })
   }
 
-  async createInvite(email: string, role: Role, organizationId: string) {
+  async createInvite(email: string, role: Role, organizationId: string, inviterId: string) {
     const existingUser = await this.db.user.findUnique({ where: { email } })
     if (existingUser) throw new ConflictException('User with this email already exists')
 
@@ -37,7 +41,16 @@ export class UsersService {
     })
     if (pendingInvite) throw new ConflictException('Active invite already exists for this email')
 
-    return this.db.invite.create({
+    // Fetch org name and inviter display name for the email
+    const [org, inviter] = await Promise.all([
+      this.db.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
+      this.db.user.findUnique({
+        where: { id: inviterId },
+        select: { displayName: true, email: true },
+      }),
+    ])
+
+    const invite = await this.db.invite.create({
       data: {
         email,
         role,
@@ -45,6 +58,16 @@ export class UsersService {
         expiresAt: addDays(new Date(), 7),
       },
     })
+
+    // Fire-and-forget — do not await so HTTP response is immediate
+    void this.emailService.sendInviteEmail({
+      toEmail: email,
+      inviteToken: invite.token,
+      organizationName: org?.name ?? 'your organization',
+      inviterName: inviter?.displayName ?? inviter?.email ?? 'A team member',
+    })
+
+    return invite
   }
 
   async listInvites(organizationId: string) {

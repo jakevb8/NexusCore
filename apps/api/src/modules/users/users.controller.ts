@@ -43,7 +43,7 @@ export class UsersController {
   @Roles(Role.ORG_MANAGER)
   @ApiOperation({ summary: 'Invite a user to the organization' })
   invite(@Body() body: InviteUserBody, @CurrentUser() user: User) {
-    return this.usersService.createInvite(body.email, body.role, user.organizationId)
+    return this.usersService.createInvite(body.email, body.role, user.organizationId, user.id)
   }
 
   @Get('invites')

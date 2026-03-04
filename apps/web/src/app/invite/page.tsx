@@ -45,7 +45,9 @@ function InviteForm() {
         <div className="text-center">
           <p className="mb-4 text-gray-600">Please sign in to accept this invite.</p>
           <button
-            onClick={() => router.push(`/login?redirect=/invite?token=${token}`)}
+            onClick={() =>
+              router.push(`/login?redirect=${encodeURIComponent(`/invite?token=${token}`)}`)
+            }
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             Sign in

@@ -21,6 +21,13 @@ const mockDb = {
     create: vi.fn(),
     delete: vi.fn(),
   },
+  organization: {
+    findUnique: vi.fn(),
+  },
+}
+
+const mockEmailService = {
+  sendInviteEmail: vi.fn().mockResolvedValue(undefined),
 }
 
 describe('UsersService', () => {
@@ -28,7 +35,7 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new UsersService(mockDb as any)
+    service = new UsersService(mockDb as any, mockEmailService as any)
   })
 
   describe('findAll', () => {
@@ -47,12 +54,15 @@ describe('UsersService', () => {
 
   describe('createInvite', () => {
     it('creates an invite for a new user', async () => {
-      mockDb.user.findUnique.mockResolvedValue(null)
+      mockDb.user.findUnique
+        .mockResolvedValueOnce(null) // email check — no existing user
+        .mockResolvedValueOnce({ displayName: 'Alice', email: 'alice@acme.com' }) // inviter lookup
       mockDb.invite.findFirst.mockResolvedValue(null)
-      const invite = { id: 'inv-1', email: 'bob@acme.com', role: Role.VIEWER }
+      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' })
+      const invite = { id: 'inv-1', email: 'bob@acme.com', role: Role.VIEWER, token: 'tok-1' }
       mockDb.invite.create.mockResolvedValue(invite)
 
-      const result = await service.createInvite('bob@acme.com', Role.VIEWER, 'org-1')
+      const result = await service.createInvite('bob@acme.com', Role.VIEWER, 'org-1', 'inviter-1')
 
       expect(result).toEqual(invite)
       expect(mockDb.invite.create).toHaveBeenCalledWith(
@@ -69,26 +79,29 @@ describe('UsersService', () => {
     it('throws ConflictException if user with email already exists', async () => {
       mockDb.user.findUnique.mockResolvedValue({ id: 'existing-user' })
 
-      await expect(service.createInvite('existing@acme.com', Role.VIEWER, 'org-1')).rejects.toThrow(
-        ConflictException,
-      )
+      await expect(
+        service.createInvite('existing@acme.com', Role.VIEWER, 'org-1', 'inviter-1'),
+      ).rejects.toThrow(ConflictException)
     })
 
     it('throws ConflictException if active invite already exists', async () => {
-      mockDb.user.findUnique.mockResolvedValue(null)
+      mockDb.user.findUnique.mockResolvedValueOnce(null) // email check
       mockDb.invite.findFirst.mockResolvedValue({ id: 'pending-invite' })
 
-      await expect(service.createInvite('pending@acme.com', Role.VIEWER, 'org-1')).rejects.toThrow(
-        ConflictException,
-      )
+      await expect(
+        service.createInvite('pending@acme.com', Role.VIEWER, 'org-1', 'inviter-1'),
+      ).rejects.toThrow(ConflictException)
     })
 
     it('sets expiresAt approximately 7 days in the future', async () => {
-      mockDb.user.findUnique.mockResolvedValue(null)
+      mockDb.user.findUnique
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce({ displayName: 'Alice', email: 'alice@acme.com' }) // inviter
       mockDb.invite.findFirst.mockResolvedValue(null)
-      mockDb.invite.create.mockResolvedValue({ id: 'inv-1' })
+      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' })
+      mockDb.invite.create.mockResolvedValue({ id: 'inv-1', token: 'tok-1' })
 
-      await service.createInvite('new@acme.com', Role.ASSET_MANAGER, 'org-1')
+      await service.createInvite('new@acme.com', Role.ASSET_MANAGER, 'org-1', 'inviter-1')
 
       const call = mockDb.invite.create.mock.calls[0][0]
       const expiresAt: Date = call.data.expiresAt
@@ -100,6 +113,31 @@ describe('UsersService', () => {
       const now = Date.now()
       expect(expiresAt.getTime()).toBeGreaterThan(now + sevenDaysMs - twoHoursMs)
       expect(expiresAt.getTime()).toBeLessThan(now + sevenDaysMs + twoHoursMs)
+    })
+
+    it('sends an invite email after creating the invite', async () => {
+      mockDb.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ displayName: 'Alice', email: 'alice@acme.com' })
+      mockDb.invite.findFirst.mockResolvedValue(null)
+      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' })
+      mockDb.invite.create.mockResolvedValue({
+        id: 'inv-1',
+        email: 'bob@acme.com',
+        role: Role.VIEWER,
+        token: 'tok-abc',
+      })
+
+      await service.createInvite('bob@acme.com', Role.VIEWER, 'org-1', 'inviter-1')
+
+      expect(mockEmailService.sendInviteEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toEmail: 'bob@acme.com',
+          inviteToken: 'tok-abc',
+          organizationName: 'Acme Corp',
+          inviterName: 'Alice',
+        }),
+      )
     })
   })
 

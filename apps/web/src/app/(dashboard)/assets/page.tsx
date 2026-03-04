@@ -35,7 +35,9 @@ function AssetModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold">{asset ? 'Edit Asset' : 'New Asset'}</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          {asset ? 'Edit Asset' : 'New Asset'}
+        </h2>
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>

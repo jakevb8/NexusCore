@@ -7,6 +7,19 @@ import { Role } from '@nexus-core/shared'
 import { toast } from 'sonner'
 import { useAuth } from '@/providers/auth-provider'
 
+const APP_URL =
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://nexus-core-rms.web.app')
+
+function copyInviteLink(token: string) {
+  const url = `${APP_URL}/invite?token=${token}`
+  navigator.clipboard
+    .writeText(url)
+    .then(() => toast.success('Invite link copied to clipboard'))
+    .catch(() => toast.error('Failed to copy link'))
+}
+
 const ROLE_COLORS: Record<string, string> = {
   SUPERADMIN: 'bg-purple-100 text-purple-700',
   ORG_MANAGER: 'bg-blue-100 text-blue-700',
@@ -150,13 +163,21 @@ export default function UsersPage() {
                         {new Date(invite.expiresAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => deleteInviteMutation.mutate(invite.id)}
-                          disabled={deleteInviteMutation.isPending}
-                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => copyInviteLink(invite.token)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            Copy link
+                          </button>
+                          <button
+                            onClick={() => deleteInviteMutation.mutate(invite.id)}
+                            disabled={deleteInviteMutation.isPending}
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -170,7 +191,7 @@ export default function UsersPage() {
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-semibold">Invite a team member</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Invite a team member</h2>
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
