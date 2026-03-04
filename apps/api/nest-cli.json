@@ -5,19 +5,10 @@
   "entryFile": "main",
   "compilerOptions": {
     "deleteOutDir": true,
+    "webpack": true,
+    "webpackConfigPath": "webpack.config.js",
     "plugins": ["@nestjs/swagger"],
     "assets": [],
     "watchAssets": false
-  },
-  "projects": {
-    "functions": {
-      "type": "application",
-      "root": "functions",
-      "entryFile": "index",
-      "sourceRoot": "functions",
-      "compilerOptions": {
-        "tsConfigPath": "tsconfig.json"
-      }
-    }
   }
 }
