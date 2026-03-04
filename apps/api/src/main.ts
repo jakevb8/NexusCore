@@ -63,6 +63,10 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document)
   }
 
+  // ─── Health check (used by Railway) ──────────────────────────────────────
+  const httpAdapter = app.getHttpAdapter()
+  httpAdapter.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok' }))
+
   const port = process.env.PORT ?? 3001
   await app.listen(port)
   console.log(`Nexus-Core API running on http://localhost:${port}/api`)

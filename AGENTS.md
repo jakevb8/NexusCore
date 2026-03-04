@@ -56,9 +56,9 @@ npx prisma studio --schema=packages/database/prisma/schema.prisma
 ## Deployment
 
 - **Frontend**: Firebase Hosting, project `nexus-core-rms`. Deployed automatically by CI on push to `main`.
-- **Backend**: Firebase Cloud Functions (Gen 2), same project. Entry point: `apps/api/functions/index.ts`.
+- **Backend**: Railway (free tier). Deployed via `Dockerfile` at repo root. Entry point: `apps/api/src/main.ts` → `apps/api/dist/main`.
 - **Database**: Neon serverless PostgreSQL. Connection string in `DATABASE_URL` / `DATABASE_DIRECT_URL` secrets.
-- **CI/CD**: `.github/workflows/ci.yml` — test → migrate → build web → deploy hosting → deploy functions.
+- **CI/CD**: `.github/workflows/ci.yml` — test → migrate → build web → deploy hosting.
 
 ## Environment Variables
 

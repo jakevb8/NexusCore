@@ -134,22 +134,36 @@ Deployment is fully automated via GitHub Actions on push to `main`. The pipeline
 1. Runs type-check + Vitest coverage (80% threshold enforced)
 2. Applies Prisma migrations against the production Neon database
 3. Builds the Next.js static export
-4. Deploys to Firebase Hosting
-5. Builds the NestJS API and deploys to Firebase Cloud Functions
+4. Deploys frontend to Firebase Hosting
+
+The NestJS API is hosted on **Railway** (free tier). Railway auto-deploys from the `main` branch via the `Dockerfile` at the repo root.
+
+### Railway setup (one-time)
+
+1. Go to [railway.com](https://railway.com) → New Project → Deploy from GitHub repo
+2. Select this repo — Railway will detect the `Dockerfile` automatically
+3. Add the following environment variables in the Railway dashboard (same values as `apps/api/.env.example`):
+   - `DATABASE_URL`
+   - `DATABASE_DIRECT_URL`
+   - `FIREBASE_PROJECT_ID`
+   - `FIREBASE_CLIENT_EMAIL`
+   - `FIREBASE_PRIVATE_KEY`
+   - `FRONTEND_URL` → set to `https://nexus-core-rms.web.app`
+   - `NODE_ENV` → `production`
+4. Copy the Railway public URL (e.g. `https://nexuscore-api-production.up.railway.app`)
+5. Set `NEXT_PUBLIC_API_URL` in GitHub Actions secrets to `<railway-url>/api/v1`
+6. Redeploy the frontend from the Actions tab so it picks up the new API URL
 
 ### Required GitHub Secrets
 
-| Secret                     | Description                                                        |
-| -------------------------- | ------------------------------------------------------------------ |
-| `DATABASE_URL`             | Neon pooled connection string                                      |
-| `DATABASE_DIRECT_URL`      | Neon direct (non-pooled) connection string                         |
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (for Hosting deploy action)          |
-| `FIREBASE_TOKEN`           | Firebase CI token (`firebase login:ci`) for Cloud Functions deploy |
-| `NEXT_PUBLIC_FIREBASE_*`   | Firebase web SDK config values                                     |
-| `NEXT_PUBLIC_API_URL`      | Deployed API base URL                                              |
-| `CODECOV_TOKEN`            | (Optional) Codecov upload token                                    |
-
-> **Note:** Firebase Cloud Functions requires the Blaze (pay-as-you-go) plan. This project runs on the free Spark plan, so the API is not currently deployed. The NestJS code, Cloud Functions wiring, and CI steps are all complete and ready — upgrading the Firebase project at [console.firebase.google.com](https://console.firebase.google.com/project/nexus-core-rms/usage/details) is the only step needed to enable live API deployment.
+| Secret                     | Description                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `DATABASE_URL`             | Neon pooled connection string                             |
+| `DATABASE_DIRECT_URL`      | Neon direct (non-pooled) connection string                |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (for Hosting deploy action) |
+| `NEXT_PUBLIC_FIREBASE_*`   | Firebase web SDK config values                            |
+| `NEXT_PUBLIC_API_URL`      | Railway API URL + `/api/v1`                               |
+| `CODECOV_TOKEN`            | (Optional) Codecov upload token                           |
 
 ---
 
