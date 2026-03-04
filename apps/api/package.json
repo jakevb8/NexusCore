@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "nest build && tsc --project tsconfig.functions.json && node scripts/copy-functions.js",
+    "build": "nest build",
     "dev": "nest start --watch",
-    "start": "node dist/main",
+    "start": "node dist/apps/api/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
