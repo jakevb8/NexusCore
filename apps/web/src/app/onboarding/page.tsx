@@ -15,7 +15,12 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
 
   const handleSlugChange = (value: string) => {
-    setSlug(value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'))
+    setSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-'),
+    )
   }
 
   const handleOrgNameChange = (value: string) => {
@@ -58,18 +63,20 @@ export default function OnboardingPage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Jane Smith"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Organization name</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Organization name
+            </label>
             <input
               type="text"
               value={orgName}
               onChange={(e) => handleOrgNameChange(e.target.value)}
               required
               placeholder="Acme Corp"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
           </div>
           <div>
@@ -85,13 +92,15 @@ export default function OnboardingPage() {
                 value={slug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 required
-                pattern="[a-z0-9-]+"
+                pattern="[a-z0-9\-]+"
                 minLength={3}
                 placeholder="acme-corp"
                 className="flex-1 rounded-r-lg px-3 py-2 text-sm focus:outline-none"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-400">Lowercase letters, numbers, and hyphens only</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Lowercase letters, numbers, and hyphens only
+            </p>
           </div>
           <button
             type="submit"

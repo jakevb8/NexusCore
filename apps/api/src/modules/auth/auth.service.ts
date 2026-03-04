@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, NotFoundException, Inject } from '@nestjs/common'
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  Inject,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { PrismaClient, User } from '@nexus-core/database'
 import * as admin from 'firebase-admin'
 
@@ -21,14 +27,29 @@ export class AuthService {
   ) {}
 
   /**
+   * Verify a raw Firebase ID token and return { uid, email }.
+   * Used by public endpoints (register, accept-invite) that can't rely on
+   * FirebaseAuthGuard because the user has no DB record yet.
+   */
+  private async verifyToken(bearerToken: string): Promise<{ uid: string; email: string }> {
+    try {
+      const decoded = await this.firebaseApp.auth().verifyIdToken(bearerToken)
+      const email = decoded.email
+      if (!email) throw new UnauthorizedException('Firebase token has no email claim')
+      return { uid: decoded.uid, email }
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err
+      throw new UnauthorizedException('Invalid or expired Firebase token')
+    }
+  }
+
+  /**
    * Called after a user signs up via Firebase Auth.
    * Creates a new Organization and the first ORG_MANAGER user.
    */
-  async registerNewOrganization(
-    firebaseUid: string,
-    email: string,
-    dto: RegisterDto,
-  ): Promise<User> {
+  async registerNewOrganization(bearerToken: string, dto: RegisterDto): Promise<User> {
+    const { uid: firebaseUid, email } = await this.verifyToken(bearerToken)
+
     const existingUser = await this.db.user.findUnique({ where: { firebaseUid } })
     if (existingUser) throw new ConflictException('User already registered')
 
@@ -57,11 +78,9 @@ export class AuthService {
   /**
    * Accept an invite token — creates a user in an existing org.
    */
-  async acceptInvite(
-    firebaseUid: string,
-    email: string,
-    dto: AcceptInviteDto,
-  ): Promise<User> {
+  async acceptInvite(bearerToken: string, dto: AcceptInviteDto): Promise<User> {
+    const { uid: firebaseUid, email } = await this.verifyToken(bearerToken)
+
     const invite = await this.db.invite.findUnique({ where: { token: dto.token } })
 
     if (!invite) throw new NotFoundException('Invite not found')
@@ -92,7 +111,9 @@ export class AuthService {
     })
   }
 
-  async getMe(userId: string): Promise<User & { organization: { id: string; name: string; slug: string } }> {
+  async getMe(
+    userId: string,
+  ): Promise<User & { organization: { id: string; name: string; slug: string } }> {
     const user = await this.db.user.findUnique({
       where: { id: userId },
       include: { organization: true },

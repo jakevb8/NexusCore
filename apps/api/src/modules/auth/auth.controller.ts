@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Version } from '@nestjs/common'
+import { Body, Controller, Get, Post, Req, UnauthorizedException } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { IsString, IsOptional, MinLength, Matches } from 'class-validator'
+import { Request } from 'express'
 import { AuthService, RegisterDto, AcceptInviteDto } from './auth.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { Public } from '../../common/decorators/public.decorator'
@@ -42,14 +43,26 @@ export class AuthController {
   }
 
   @Post('register')
+  @Public()
   @ApiOperation({ summary: 'Register a new organization (first user becomes ORG_MANAGER)' })
-  async register(@CurrentUser() user: User & { email: string; firebaseUid: string }, @Body() body: RegisterBody) {
-    return this.authService.registerNewOrganization(user.firebaseUid, user.email, body)
+  async register(@Req() req: Request, @Body() body: RegisterBody) {
+    const bearerToken = this.extractBearer(req)
+    return this.authService.registerNewOrganization(bearerToken, body)
   }
 
   @Post('accept-invite')
+  @Public()
   @ApiOperation({ summary: 'Accept an organization invite' })
-  async acceptInvite(@CurrentUser() user: User & { email: string; firebaseUid: string }, @Body() body: AcceptInviteBody) {
-    return this.authService.acceptInvite(user.firebaseUid, user.email, body)
+  async acceptInvite(@Req() req: Request, @Body() body: AcceptInviteBody) {
+    const bearerToken = this.extractBearer(req)
+    return this.authService.acceptInvite(bearerToken, body)
+  }
+
+  private extractBearer(req: Request): string {
+    const auth = req.headers.authorization
+    if (!auth?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing authorization token')
+    }
+    return auth.slice(7)
   }
 }
