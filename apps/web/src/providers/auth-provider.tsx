@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser)
       if (fbUser) {
+        setLoading(true)
         await fetchAppUser(fbUser)
       } else {
         setUser(null)

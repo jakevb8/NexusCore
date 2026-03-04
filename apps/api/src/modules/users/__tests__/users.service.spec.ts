@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { UsersService } from '../users.service'
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common'
 import { Role } from '@nexus-core/shared'
 
 const mockDb = {
@@ -14,6 +19,7 @@ const mockDb = {
     findFirst: vi.fn(),
     findMany: vi.fn(),
     create: vi.fn(),
+    delete: vi.fn(),
   },
 }
 
@@ -108,6 +114,35 @@ describe('UsersService', () => {
       expect(mockDb.invite.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { organizationId: 'org-1' } }),
       )
+    })
+  })
+
+  describe('deleteInvite', () => {
+    it('deletes a pending invite that belongs to the org', async () => {
+      const invite = { id: 'inv-1', organizationId: 'org-1', acceptedAt: null }
+      mockDb.invite.findFirst.mockResolvedValue(invite)
+      mockDb.invite.delete.mockResolvedValue(invite)
+
+      const result = await service.deleteInvite('inv-1', 'org-1')
+
+      expect(result).toEqual(invite)
+      expect(mockDb.invite.delete).toHaveBeenCalledWith({ where: { id: 'inv-1' } })
+    })
+
+    it('throws NotFoundException when invite not found in org', async () => {
+      mockDb.invite.findFirst.mockResolvedValue(null)
+
+      await expect(service.deleteInvite('bad-id', 'org-1')).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws ForbiddenException when invite is already accepted', async () => {
+      mockDb.invite.findFirst.mockResolvedValue({
+        id: 'inv-1',
+        organizationId: 'org-1',
+        acceptedAt: new Date(),
+      })
+
+      await expect(service.deleteInvite('inv-1', 'org-1')).rejects.toThrow(ForbiddenException)
     })
   })
 

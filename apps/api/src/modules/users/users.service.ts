@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { PrismaClient } from '@nexus-core/database'
 import { Role } from '@nexus-core/shared'
@@ -53,10 +54,18 @@ export class UsersService {
     })
   }
 
+  async deleteInvite(inviteId: string, organizationId: string) {
+    const invite = await this.db.invite.findFirst({ where: { id: inviteId, organizationId } })
+    if (!invite) throw new NotFoundException('Invite not found')
+    if (invite.acceptedAt) throw new ForbiddenException('Cannot delete an already accepted invite')
+    return this.db.invite.delete({ where: { id: inviteId } })
+  }
+
   async updateRole(userId: string, role: Role, organizationId: string) {
     const user = await this.db.user.findFirst({ where: { id: userId, organizationId } })
     if (!user) throw new NotFoundException('User not found in this organization')
-    if (role === Role.SUPERADMIN) throw new BadRequestException('Cannot assign SUPERADMIN via this endpoint')
+    if (role === Role.SUPERADMIN)
+      throw new BadRequestException('Cannot assign SUPERADMIN via this endpoint')
 
     return this.db.user.update({ where: { id: userId }, data: { role } })
   }

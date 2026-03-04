@@ -40,7 +40,7 @@ function AssetModal({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -49,7 +49,7 @@ function AssetModal({
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">SKU</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
                 value={form.sku}
                 onChange={(e) => setForm({ ...form, sku: e.target.value })}
               />
@@ -58,7 +58,7 @@ function AssetModal({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
             <textarea
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
               rows={2}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -67,18 +67,23 @@ function AssetModal({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
             <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as AssetStatus })}
             >
               {Object.values(AssetStatus).map((s) => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                <option key={s} value={s}>
+                  {s.replace('_', ' ')}
+                </option>
               ))}
             </select>
           </div>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
             Cancel
           </button>
           <button
@@ -106,7 +111,9 @@ export default function AssetsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['assets', { page, search }],
     queryFn: () =>
-      api.get('/assets', { params: { page, perPage: 20, search: search || undefined } }).then((r) => r.data),
+      api
+        .get('/assets', { params: { page, perPage: 20, search: search || undefined } })
+        .then((r) => r.data),
   })
 
   const { data: auditLogs } = useQuery({
@@ -117,19 +124,30 @@ export default function AssetsPage() {
 
   const createMutation = useMutation({
     mutationFn: (dto: CreateAssetDto) => api.post('/assets', dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); setModal(null); toast.success('Asset created') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['assets'] })
+      setModal(null)
+      toast.success('Asset created')
+    },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to create'),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateAssetDto }) => api.put(`/assets/${id}`, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); setModal(null); toast.success('Asset updated') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['assets'] })
+      setModal(null)
+      toast.success('Asset updated')
+    },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to update'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/assets/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); toast.success('Asset deleted') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['assets'] })
+      toast.success('Asset deleted')
+    },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to delete'),
   })
 
@@ -170,7 +188,13 @@ export default function AssetsPage() {
         </div>
         {isManager && (
           <div className="flex gap-2">
-            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleCsvUpload}
+            />
             <button
               onClick={() => fileRef.current?.click()}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -192,15 +216,18 @@ export default function AssetsPage() {
         type="text"
         placeholder="Search by name or SKU..."
         value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-        className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        onChange={(e) => {
+          setSearch(e.target.value)
+          setPage(1)
+        }}
+        className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
       />
 
       {/* Table */}
       <div className="rounded-xl border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
               <th className="px-6 py-3">Name</th>
               <th className="px-6 py-3">SKU</th>
               <th className="px-6 py-3">Status</th>
@@ -229,7 +256,9 @@ export default function AssetsPage() {
                     </td>
                     <td className="px-6 py-4 font-mono text-gray-600">{asset.sku}</td>
                     <td className="px-6 py-4">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[asset.status]}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[asset.status]}`}
+                      >
                         {asset.status.replace('_', ' ')}
                       </span>
                     </td>
@@ -271,7 +300,8 @@ export default function AssetsPage() {
         {data?.meta && data.meta.total > data.meta.perPage && (
           <div className="flex items-center justify-between border-t border-gray-200 px-6 py-3">
             <p className="text-xs text-gray-500">
-              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.meta.total)} of {data.meta.total}
+              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.meta.total)} of{' '}
+              {data.meta.total}
             </p>
             <div className="flex gap-2">
               <button
@@ -304,20 +334,25 @@ export default function AssetsPage() {
 
       {/* Audit History Drawer */}
       {auditAsset && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setAuditAsset(null)}>
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/30"
+          onClick={() => setAuditAsset(null)}
+        >
           <div
             className="h-full w-full max-w-md overflow-y-auto bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900">Asset History</h2>
-              <p className="text-sm text-gray-500">{auditAsset.name} · {auditAsset.sku}</p>
+              <p className="text-sm text-gray-500">
+                {auditAsset.name} · {auditAsset.sku}
+              </p>
             </div>
             <div className="divide-y divide-gray-100 p-4">
               {auditLogs?.map((log: any) => (
                 <div key={log.id} className="py-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono font-medium text-gray-700">
+                    <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs font-medium text-gray-700">
                       {log.action}
                     </span>
                     <span className="text-xs text-gray-400">

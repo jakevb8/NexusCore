@@ -43,6 +43,15 @@ export default function UsersPage() {
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to send invite'),
   })
 
+  const deleteInviteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/invites/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invites'] })
+      toast.success('Invite deleted')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to delete invite'),
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -121,6 +130,7 @@ export default function UsersPage() {
                   <th className="px-6 py-3">Email</th>
                   <th className="px-6 py-3">Role</th>
                   <th className="px-6 py-3">Expires</th>
+                  <th className="px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -138,6 +148,15 @@ export default function UsersPage() {
                       </td>
                       <td className="px-6 py-4 text-gray-500">
                         {new Date(invite.expiresAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => deleteInviteMutation.mutate(invite.id)}
+                          disabled={deleteInviteMutation.isPending}
+                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -162,7 +181,7 @@ export default function UsersPage() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="colleague@company.com"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -170,7 +189,7 @@ export default function UsersPage() {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as Role)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
                 >
                   <option value={Role.ASSET_MANAGER}>Asset Manager</option>
                   <option value={Role.ORG_MANAGER}>Org Manager</option>

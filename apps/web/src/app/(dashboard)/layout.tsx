@@ -14,7 +14,7 @@ const navItems = [
 ]
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, loading, needsOnboarding, pendingApproval, logout } = useAuth()
+  const { user, firebaseUser, loading, needsOnboarding, pendingApproval, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -22,12 +22,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     if (loading) return
     if (pendingApproval) {
       router.push('/pending-approval')
-    } else if (!user && !needsOnboarding) {
+    } else if (!user && !needsOnboarding && !firebaseUser) {
+      // Only redirect to login if there's genuinely no Firebase session either
       router.push('/login')
     } else if (needsOnboarding) {
       router.push('/onboarding')
     }
-  }, [user, loading, needsOnboarding, pendingApproval, router])
+  }, [user, firebaseUser, loading, needsOnboarding, pendingApproval, router])
 
   if (loading) {
     return (

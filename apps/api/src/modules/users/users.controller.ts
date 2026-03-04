@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Body, Param, ParseUUIDPipe, Version } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  Version,
+} from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { IsEmail, IsEnum } from 'class-validator'
 import { UsersService } from './users.service'
@@ -41,6 +51,13 @@ export class UsersController {
   @ApiOperation({ summary: 'List pending invites' })
   listInvites(@CurrentUser() user: User) {
     return this.usersService.listInvites(user.organizationId)
+  }
+
+  @Delete('invites/:id')
+  @Roles(Role.ORG_MANAGER)
+  @ApiOperation({ summary: 'Delete a pending invite' })
+  deleteInvite(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.usersService.deleteInvite(id, user.organizationId)
   }
 
   @Patch(':id/role')
