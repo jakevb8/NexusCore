@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   Inject,
+  Logger,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import * as admin from 'firebase-admin'
@@ -14,6 +15,8 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(FirebaseAuthGuard.name)
+
   constructor(
     @Inject('FIREBASE_ADMIN') private readonly firebaseApp: admin.app.App,
     private readonly reflector: Reflector,
@@ -67,6 +70,7 @@ export class FirebaseAuthGuard implements CanActivate {
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err
       if (err instanceof ForbiddenException) throw err
+      this.logger.error(`Token verification failed: ${(err as any)?.message ?? String(err)}`)
       throw new UnauthorizedException('Invalid or expired token')
     }
   }

@@ -90,16 +90,29 @@ async function bootstrap() {
       if (!apps.length) {
         return res.json({ initialized: false, reason: 'No Firebase Admin apps' })
       }
-      const projectId = apps[0]?.options?.credential
-        ? ((apps[0].options as any).projectId ?? 'unknown')
-        : 'no credential'
-      // Try a dummy token verify to get the real error
+      const app = apps[0]!
+      const appName = app.name
+      const options = app.options as any
+      const projectId =
+        options?.credential?.projectId ?? process.env.FIREBASE_PROJECT_ID ?? 'unknown'
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? 'missing'
+      const privateKeySet = !!process.env.FIREBASE_PRIVATE_KEY
+      const privateKeyStarts = process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30) ?? 'missing'
+      // Try a dummy token verify to get the real error message
       try {
-        await apps[0]!.auth().verifyIdToken('dummy')
+        await app.auth().verifyIdToken('dummy.token.here')
       } catch (e: any) {
-        return res.json({ initialized: true, projectId, verifyError: e.message ?? String(e) })
+        return res.json({
+          initialized: true,
+          appName,
+          projectId,
+          clientEmail,
+          privateKeySet,
+          privateKeyStarts,
+          verifyError: e.message ?? String(e),
+        })
       }
-      return res.json({ initialized: true, projectId })
+      return res.json({ initialized: true, appName, projectId })
     } catch (e: any) {
       return res.json({ error: e.message ?? String(e) })
     }
