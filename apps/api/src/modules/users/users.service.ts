@@ -92,4 +92,14 @@ export class UsersService {
 
     return this.db.user.update({ where: { id: userId }, data: { role } })
   }
+
+  async removeMember(userId: string, actorId: string, organizationId: string) {
+    if (userId === actorId) throw new BadRequestException('You cannot remove yourself')
+
+    const user = await this.db.user.findFirst({ where: { id: userId, organizationId } })
+    if (!user) throw new NotFoundException('User not found in this organization')
+    if (user.role === Role.SUPERADMIN) throw new ForbiddenException('Cannot remove a SUPERADMIN')
+
+    return this.db.user.delete({ where: { id: userId } })
+  }
 }

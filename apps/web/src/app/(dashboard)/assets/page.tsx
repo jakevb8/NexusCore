@@ -179,7 +179,9 @@ export default function AssetsPage() {
     if (modal === 'create') {
       createMutation.mutate(formData)
     } else if (modal && typeof modal === 'object') {
-      updateMutation.mutate({ id: (modal as AssetDto).id, dto: formData })
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { sku: _sku, ...updateData } = formData
+      updateMutation.mutate({ id: (modal as AssetDto).id, dto: updateData })
     }
   }
 

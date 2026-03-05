@@ -8,6 +8,8 @@ import {
   Param,
   ParseUUIDPipe,
   Version,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { IsEmail, IsEnum } from 'class-validator'
@@ -69,5 +71,13 @@ export class UsersController {
     @CurrentUser() user: User,
   ) {
     return this.usersService.updateRole(id, body.role, user.organizationId)
+  }
+
+  @Delete(':id')
+  @Roles(Role.ORG_MANAGER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a member from the organization' })
+  removeMember(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.usersService.removeMember(id, user.id, user.organizationId)
   }
 }

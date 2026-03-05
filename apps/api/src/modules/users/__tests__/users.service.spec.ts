@@ -14,6 +14,7 @@ const mockDb = {
     findUnique: vi.fn(),
     findFirst: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
   },
   invite: {
     findFirst: vi.fn(),
@@ -213,6 +214,45 @@ describe('UsersService', () => {
 
       await expect(service.updateRole('u1', Role.SUPERADMIN, 'org-1')).rejects.toThrow(
         BadRequestException,
+      )
+    })
+  })
+
+  describe('removeMember', () => {
+    it('deletes a member that belongs to the org', async () => {
+      const user = { id: 'u2', organizationId: 'org-1', role: Role.VIEWER }
+      mockDb.user.findFirst.mockResolvedValue(user)
+      mockDb.user.delete.mockResolvedValue(user)
+
+      const result = await service.removeMember('u2', 'actor-1', 'org-1')
+
+      expect(result).toEqual(user)
+      expect(mockDb.user.delete).toHaveBeenCalledWith({ where: { id: 'u2' } })
+    })
+
+    it('throws BadRequestException when actor tries to remove themselves', async () => {
+      await expect(service.removeMember('actor-1', 'actor-1', 'org-1')).rejects.toThrow(
+        BadRequestException,
+      )
+    })
+
+    it('throws NotFoundException when user not found in org', async () => {
+      mockDb.user.findFirst.mockResolvedValue(null)
+
+      await expect(service.removeMember('u2', 'actor-1', 'org-1')).rejects.toThrow(
+        NotFoundException,
+      )
+    })
+
+    it('throws ForbiddenException when trying to remove a SUPERADMIN', async () => {
+      mockDb.user.findFirst.mockResolvedValue({
+        id: 'u2',
+        organizationId: 'org-1',
+        role: Role.SUPERADMIN,
+      })
+
+      await expect(service.removeMember('u2', 'actor-1', 'org-1')).rejects.toThrow(
+        ForbiddenException,
       )
     })
   })

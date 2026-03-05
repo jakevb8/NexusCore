@@ -20,12 +20,24 @@ function copyInviteLink(token: string) {
     .catch(() => toast.error('Failed to copy link'))
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  SUPERADMIN: 'bg-purple-100 text-purple-700',
-  ORG_MANAGER: 'bg-blue-100 text-blue-700',
-  ASSET_MANAGER: 'bg-amber-100 text-amber-700',
-  VIEWER: 'bg-gray-100 text-gray-600',
-  EMPLOYEE: 'bg-gray-100 text-gray-600',
+const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
+  SUPERADMIN: { bg: '#f3e8ff', text: '#7e22ce' },
+  ORG_MANAGER: { bg: '#dbeafe', text: '#1d4ed8' },
+  ASSET_MANAGER: { bg: '#fef3c7', text: '#b45309' },
+  VIEWER: { bg: '#f3f4f6', text: '#4b5563' },
+  EMPLOYEE: { bg: '#f3f4f6', text: '#4b5563' },
+}
+
+function RoleBadge({ role }: { role: string }) {
+  const colors = ROLE_COLORS[role] ?? { bg: '#f3f4f6', text: '#4b5563' }
+  return (
+    <span
+      style={{ backgroundColor: colors.bg, color: colors.text }}
+      className="rounded-full px-2.5 py-1 text-xs font-medium"
+    >
+      {role.replace('_', ' ')}
+    </span>
+  )
 }
 
 export default function UsersPage() {
@@ -67,6 +79,15 @@ export default function UsersPage() {
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to delete invite'),
   })
 
+  const removeMemberMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      toast.success('Member removed')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to remove member'),
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -92,6 +113,7 @@ export default function UsersPage() {
               <th className="px-6 py-3">Member</th>
               <th className="px-6 py-3">Role</th>
               <th className="px-6 py-3">Joined</th>
+              {isManager && <th className="px-6 py-3">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -119,15 +141,24 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[u.role]}`}
-                      >
-                        {u.role}
-                      </span>
+                      <RoleBadge role={u.role} />
                     </td>
                     <td className="px-6 py-4 text-gray-500">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
+                    {isManager && (
+                      <td className="px-6 py-4">
+                        {u.id !== me?.id && u.role !== Role.SUPERADMIN && (
+                          <button
+                            onClick={() => removeMemberMutation.mutate(u.id)}
+                            disabled={removeMemberMutation.isPending}
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
           </tbody>
@@ -155,11 +186,7 @@ export default function UsersPage() {
                     <tr key={invite.id}>
                       <td className="px-6 py-4 text-gray-700">{invite.email}</td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[invite.role]}`}
-                        >
-                          {invite.role}
-                        </span>
+                        <RoleBadge role={invite.role} />
                       </td>
                       <td className="px-6 py-4 text-gray-500">
                         {new Date(invite.expiresAt).toLocaleDateString()}

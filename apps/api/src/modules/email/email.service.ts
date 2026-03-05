@@ -42,7 +42,7 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'NexusCore <invites@nexuscore.app>',
+        from: 'NexusCore <onboarding@resend.dev>',
         to: toEmail,
         subject: `${inviterName} invited you to join ${organizationName} on NexusCore`,
         html: `
