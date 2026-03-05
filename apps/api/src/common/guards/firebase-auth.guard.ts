@@ -39,11 +39,27 @@ export class FirebaseAuthGuard implements CanActivate {
     try {
       const decoded = await this.firebaseApp.auth().verifyIdToken(token)
 
-      // Lookup the user in our DB to get role + organizationId
-      const user = await prisma.user.findUnique({
+      // Lookup the user by UID first (fast path). If not found, fall back to
+      // email and migrate the stored UID — supports cross-client identity
+      // (e.g. same Google account on JS app, .NET app, and mobile).
+      let user = await prisma.user.findUnique({
         where: { firebaseUid: decoded.uid },
         include: { organization: true },
       })
+
+      if (!user && decoded.email) {
+        const byEmail = await prisma.user.findUnique({
+          where: { email: decoded.email },
+        })
+        if (byEmail) {
+          // Migrate UID so subsequent requests hit the fast path.
+          user = await prisma.user.update({
+            where: { id: byEmail.id },
+            data: { firebaseUid: decoded.uid },
+            include: { organization: true },
+          })
+        }
+      }
 
       if (!user) {
         throw new UnauthorizedException('User not found. Complete onboarding first.')

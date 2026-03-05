@@ -53,6 +53,34 @@ export class AuthService {
   }
 
   /**
+   * Look up a user by Firebase UID. If not found, fall back to email lookup and
+   * migrate the stored UID to the new one — transparent cross-client identity.
+   * Use this wherever you have both uid and email (i.e. after verifying a token).
+   */
+  async getOrMigrateUser(firebaseUid: string, email: string): Promise<User | null> {
+    // Fast path: UID already matches.
+    const byUid = await this.db.user.findUnique({
+      where: { firebaseUid },
+      include: { organization: true },
+    })
+    if (byUid) return byUid
+
+    // Fallback: find by email (user registered via a different Firebase project / client).
+    const byEmail = await this.db.user.findUnique({
+      where: { email },
+      include: { organization: true },
+    })
+    if (!byEmail) return null
+
+    // Migrate the stored UID so future logins hit the fast path.
+    return this.db.user.update({
+      where: { id: byEmail.id },
+      data: { firebaseUid },
+      include: { organization: true },
+    })
+  }
+
+  /**
    * Determine whether the next registering org should be auto-approved.
    *
    * Rules (evaluated in order):
@@ -84,7 +112,8 @@ export class AuthService {
   async registerNewOrganization(bearerToken: string, dto: RegisterDto): Promise<User> {
     const { uid: firebaseUid, email } = await this.verifyToken(bearerToken)
 
-    const existingUser = await this.db.user.findUnique({ where: { firebaseUid } })
+    // Block if this email already has a user record (cross-client identity check).
+    const existingUser = await this.db.user.findUnique({ where: { email } })
     if (existingUser) throw new ConflictException('User already registered')
 
     const existingOrg = await this.db.organization.findUnique({
@@ -128,7 +157,8 @@ export class AuthService {
     if (invite.expiresAt < new Date()) throw new ConflictException('Invite has expired')
     if (invite.email !== email) throw new ConflictException('Invite email mismatch')
 
-    const existingUser = await this.db.user.findUnique({ where: { firebaseUid } })
+    // Block if this email already has a user record (cross-client identity check).
+    const existingUser = await this.db.user.findUnique({ where: { email } })
     if (existingUser) throw new ConflictException('User already registered')
 
     return this.db.$transaction(async (tx) => {

@@ -11,6 +11,7 @@ const mockTx = {
 const mockDb = {
   user: {
     findUnique: vi.fn(),
+    update: vi.fn(),
   },
   organization: {
     findUnique: vi.fn(),
@@ -303,6 +304,42 @@ describe('AuthService', () => {
       mockDb.user.findUnique.mockResolvedValue(null)
 
       await expect(service.getMe('nonexistent')).rejects.toThrow(NotFoundException)
+    })
+  })
+
+  describe('getOrMigrateUser', () => {
+    it('returns user directly when UID matches (fast path)', async () => {
+      const user = { id: 'user-1', firebaseUid: 'uid-1', email: 'a@b.com' }
+      mockDb.user.findUnique.mockResolvedValue(user)
+
+      const result = await service.getOrMigrateUser('uid-1', 'a@b.com')
+
+      expect(result).toEqual(user)
+      expect(mockDb.user.update).not.toHaveBeenCalled()
+    })
+
+    it('falls back to email and migrates UID when UID not found', async () => {
+      const existing = { id: 'user-1', firebaseUid: 'old-uid', email: 'a@b.com' }
+      const migrated = { id: 'user-1', firebaseUid: 'new-uid', email: 'a@b.com' }
+      // First findUnique (by UID) returns null; second (by email) returns existing
+      mockDb.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(existing)
+      mockDb.user.update.mockResolvedValue(migrated)
+
+      const result = await service.getOrMigrateUser('new-uid', 'a@b.com')
+
+      expect(result).toEqual(migrated)
+      expect(mockDb.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { firebaseUid: 'new-uid' } }),
+      )
+    })
+
+    it('returns null when neither UID nor email found', async () => {
+      mockDb.user.findUnique.mockResolvedValue(null)
+
+      const result = await service.getOrMigrateUser('uid-x', 'nobody@test.com')
+
+      expect(result).toBeNull()
+      expect(mockDb.user.update).not.toHaveBeenCalled()
     })
   })
 })
