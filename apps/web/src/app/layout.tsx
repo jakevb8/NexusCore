@@ -9,8 +9,8 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Nexus-Core | Resource Management',
-  description: 'Multi-tenant enterprise resource management system',
+  title: 'NexusCoreJS | Resource Management',
+  description: 'NexusCoreJS — Multi-tenant enterprise resource management system',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

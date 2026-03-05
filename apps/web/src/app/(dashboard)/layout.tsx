@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="flex w-60 flex-col border-r border-gray-200 bg-white">
         <div className="flex h-16 items-center border-b border-gray-200 px-6">
-          <span className="text-lg font-bold text-gray-900">Nexus-Core</span>
+          <span className="text-lg font-bold text-gray-900">NexusCoreJS</span>
         </div>
 
         <div className="px-3 py-3">

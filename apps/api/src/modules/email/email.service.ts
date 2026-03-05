@@ -42,9 +42,9 @@ export class EmailService {
 
     try {
       await this.resend.emails.send({
-        from: 'NexusCore <onboarding@resend.dev>',
+        from: 'NexusCoreJS <onboarding@resend.dev>',
         to: toEmail,
-        subject: `${inviterName} invited you to join ${organizationName} on NexusCore`,
+        subject: `${inviterName} invited you to join ${organizationName} on NexusCoreJS`,
         html: `
 <!DOCTYPE html>
 <html lang="en">
@@ -60,7 +60,7 @@ export class EmailService {
           <!-- Header -->
           <tr>
             <td style="background:#2563eb;padding:32px 40px;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">NexusCore</p>
+              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">NexusCoreJS</p>
             </td>
           </tr>
           <!-- Body -->
@@ -69,7 +69,7 @@ export class EmailService {
               <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;">You&apos;ve been invited!</h1>
               <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
                 <strong style="color:#374151;">${inviterName}</strong> has invited you to join
-                <strong style="color:#374151;">${organizationName}</strong> on NexusCore — a multi-tenant resource management platform.
+                 <strong style="color:#374151;">${organizationName}</strong> on NexusCoreJS — a multi-tenant resource management platform.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#6b7280;line-height:1.6;">
                 Click the button below to accept your invitation. This link expires in <strong>7 days</strong>.

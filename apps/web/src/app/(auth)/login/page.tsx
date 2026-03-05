@@ -38,7 +38,7 @@ function LoginForm() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Sign in to NexusCore</h1>
+      <h1 className="mb-1 text-2xl font-bold text-gray-900">Sign in to NexusCoreJS</h1>
       <p className="mb-6 text-sm text-gray-500">Manage your organization&apos;s assets</p>
 
       <button

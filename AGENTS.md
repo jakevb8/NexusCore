@@ -1,8 +1,41 @@
-# NexusCore — Agent Instructions
+# NexusCoreJS — Agent Instructions
 
 ## Project Overview
 
-Multi-tenant Resource Management SaaS (NexusCore). TurboRepo monorepo with a Next.js 15 static frontend and NestJS REST API, backed by Neon PostgreSQL via Prisma, Firebase Auth, and deployed to Firebase Hosting + Railway.
+NexusCoreJS is the JavaScript/TypeScript implementation of the NexusCore multi-tenant Resource Management SaaS. TurboRepo monorepo with a Next.js 15 static frontend and NestJS REST API, backed by Neon PostgreSQL via Prisma, Firebase Auth, and deployed to Firebase Hosting + Railway.
+
+**Sister repo:** `NexusCoreDotNet` at `/Users/jake/projects/NexusCoreDotNet` (GitHub: `jakevb8/NexusCoreDotNet`) — an ASP.NET Core 8 Razor Pages implementation of the same feature set, sharing the same Neon PostgreSQL database via Entity Framework Core.
+
+## Cross-Repo Feature Parity
+
+Both repos implement **exactly the same product features**. When a feature is added, changed, or removed in one repo, the equivalent change MUST be made in the other repo in the same session. This includes:
+
+- API endpoints (routes, request/response shapes, validation rules, error codes)
+- Business logic (e.g. trial limits, auto-approval thresholds, RBAC rules)
+- UI behaviour (e.g. form fields, table columns, modal flows, toast messages)
+- Email content and sender address
+
+**Canonical feature list** (both repos must always implement all of these):
+
+| Feature                   | Details                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Multi-tenancy             | All queries scoped by `organizationId` from verified JWT                                             |
+| RBAC                      | `SUPERADMIN > ORG_MANAGER > ASSET_MANAGER > VIEWER`                                                  |
+| Auto org approval         | Auto-approve if daily approvals < 5 AND total active orgs < 50                                       |
+| Asset CRUD                | Create/read/update/delete with status: `AVAILABLE / IN_USE / MAINTENANCE / RETIRED`                  |
+| Asset trial limit         | 100 assets per org; enforced on create and CSV import                                                |
+| Asset CSV import          | Bulk import; stops at trial limit; returns `{ created, skipped, limitReached, errors }`              |
+| Asset CSV sample download | Download a sample CSV template                                                                       |
+| Audit log                 | Every mutation logged synchronously with before/after snapshot                                       |
+| Reports/analytics         | Utilization rate + asset-by-status breakdown, 5-min in-memory cache                                  |
+| Team invites              | ORG_MANAGER invites by email (Resend, sender `onboarding@resend.dev`); 7-day TTL; copy-link fallback |
+| Remove members            | ORG_MANAGER can remove members; blocks self-removal and SUPERADMIN removal                           |
+| Role management           | ORG_MANAGER can change member roles; cannot assign SUPERADMIN                                        |
+| Rate limiting             | 300 req/15 min global; 5 req/hour on registration                                                    |
+
+**When working in this repo (NexusCoreJS):** After completing any feature change, note what the equivalent change would be in NexusCoreDotNet and implement it there too (open the NexusCoreDotNet project, make the corresponding change, commit, and push). If you cannot determine the equivalent .NET implementation, state clearly what was changed here and what needs to change in NexusCoreDotNet so the user can action it.
+
+**When working in NexusCoreDotNet:** Same rule applies in reverse — propagate to NexusCoreJS.
 
 ## Monorepo Structure
 
