@@ -23,6 +23,8 @@ function copyInviteLink(token: string) {
 const ROLE_COLORS: Record<string, string> = {
   SUPERADMIN: 'bg-purple-100 text-purple-700',
   ORG_MANAGER: 'bg-blue-100 text-blue-700',
+  ASSET_MANAGER: 'bg-amber-100 text-amber-700',
+  VIEWER: 'bg-gray-100 text-gray-600',
   EMPLOYEE: 'bg-gray-100 text-gray-600',
 }
 

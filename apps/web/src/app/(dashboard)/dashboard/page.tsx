@@ -40,11 +40,13 @@ export default function DashboardPage() {
   })
 
   const pieData = stats
-    ? Object.entries(stats.byStatus).map(([status, count]) => ({
-        name: status.replace('_', ' '),
-        value: count,
-        color: STATUS_COLORS[status as AssetStatus],
-      }))
+    ? Object.entries(stats.byStatus)
+        .filter(([, count]) => count > 0)
+        .map(([status, count]) => ({
+          name: status.replace('_', ' '),
+          value: count,
+          color: STATUS_COLORS[status as AssetStatus],
+        }))
     : []
 
   const barData = stats
@@ -93,7 +95,14 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-base font-semibold text-gray-900">Asset Status Distribution</h2>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
                 {pieData.map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
                 ))}
