@@ -160,9 +160,17 @@ export default function AssetsPage() {
       return api.post('/assets/import/csv', form)
     },
     onSuccess: (r) => {
-      const { created, skipped } = r.data
+      const { created, skipped, limitReached } = r.data
       qc.invalidateQueries({ queryKey: ['assets'] })
-      toast.success(`Imported ${created} assets, skipped ${skipped}`)
+      if (limitReached) {
+        toast.warning(
+          `Imported ${created} assets. Trial limit reached — ${skipped} rows skipped. Contact support to upgrade.`,
+        )
+      } else {
+        toast.success(
+          `Imported ${created} assets${skipped ? `, skipped ${skipped} duplicates` : ''}`,
+        )
+      }
     },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Import failed'),
   })
@@ -181,12 +189,28 @@ export default function AssetsPage() {
     e.target.value = ''
   }
 
+  const handleSampleDownload = () => {
+    const rows = [
+      'name,sku,description,status',
+      'Laptop Pro 15,LAPTOP-001,15-inch developer laptop,AVAILABLE',
+      'Standing Desk,DESK-001,Height-adjustable standing desk,IN_USE',
+      'Office Chair,CHAIR-001,Ergonomic mesh chair,AVAILABLE',
+    ]
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'assets-sample.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
-          <p className="text-sm text-gray-500">{data?.meta?.total ?? 0} total assets</p>
+          <p className="text-sm text-gray-500">{data?.meta?.total ?? 0} / 100 trial assets</p>
         </div>
         {isManager && (
           <div className="flex gap-2">
@@ -197,6 +221,12 @@ export default function AssetsPage() {
               className="hidden"
               onChange={handleCsvUpload}
             />
+            <button
+              onClick={handleSampleDownload}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Sample CSV
+            </button>
             <button
               onClick={() => fileRef.current?.click()}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"

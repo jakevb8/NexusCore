@@ -9,6 +9,9 @@ import { PrismaClient, Asset, AssetStatus } from '@nexus-core/database'
 import { CreateAssetDto, UpdateAssetDto, PaginationParams } from '@nexus-core/shared'
 import { AuditService } from '../audit/audit.service'
 
+/** Maximum number of assets allowed per organization on the free trial. */
+export const TRIAL_ASSET_LIMIT = 100
+
 @Injectable()
 export class AssetsService {
   constructor(
@@ -49,6 +52,13 @@ export class AssetsService {
   async create(dto: CreateAssetDto, organizationId: string, actorId: string): Promise<Asset> {
     const existing = await this.db.asset.findUnique({ where: { sku: dto.sku } })
     if (existing) throw new ConflictException(`SKU "${dto.sku}" already exists`)
+
+    const assetCount = await this.db.asset.count({ where: { organizationId } })
+    if (assetCount >= TRIAL_ASSET_LIMIT) {
+      throw new ForbiddenException(
+        `Trial limit reached: organizations are limited to ${TRIAL_ASSET_LIMIT} assets. Please contact support to upgrade.`,
+      )
+    }
 
     const asset = await this.db.asset.create({
       data: { ...dto, organizationId },
@@ -104,17 +114,27 @@ export class AssetsService {
     records: CreateAssetDto[],
     organizationId: string,
     actorId: string,
-  ): Promise<{ created: number; skipped: number; errors: string[] }> {
+  ): Promise<{ created: number; skipped: number; limitReached: boolean; errors: string[] }> {
     let created = 0
     let skipped = 0
+    let limitReached = false
     const errors: string[] = []
 
     for (const record of records) {
+      // Stop processing once we've hit the trial limit
+      if (limitReached) {
+        skipped++
+        continue
+      }
+
       try {
         await this.create(record, organizationId, actorId)
         created++
       } catch (err: any) {
         if (err instanceof ConflictException) {
+          skipped++
+        } else if (err instanceof ForbiddenException) {
+          limitReached = true
           skipped++
         } else {
           errors.push(`SKU ${record.sku}: ${err.message}`)
@@ -122,6 +142,6 @@ export class AssetsService {
       }
     }
 
-    return { created, skipped, errors }
+    return { created, skipped, limitReached, errors }
   }
 }

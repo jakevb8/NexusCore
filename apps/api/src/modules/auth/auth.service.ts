@@ -19,6 +19,15 @@ export interface AcceptInviteDto {
   displayName?: string
 }
 
+/** Auto-approve up to this many new orgs per calendar day (UTC). */
+const AUTO_APPROVE_DAILY_LIMIT = 5
+
+/**
+ * Once the total number of ACTIVE orgs reaches this threshold,
+ * stop auto-approving and require manual SUPERADMIN review.
+ */
+const AUTO_APPROVE_TOTAL_LIMIT = 50
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -44,8 +53,33 @@ export class AuthService {
   }
 
   /**
+   * Determine whether the next registering org should be auto-approved.
+   *
+   * Rules (evaluated in order):
+   *   1. If total ACTIVE orgs >= AUTO_APPROVE_TOTAL_LIMIT → manual approval required.
+   *   2. If orgs auto-approved today (UTC) >= AUTO_APPROVE_DAILY_LIMIT → manual approval required.
+   *   3. Otherwise → auto-approve.
+   */
+  async shouldAutoApprove(): Promise<boolean> {
+    const todayUtc = new Date()
+    todayUtc.setUTCHours(0, 0, 0, 0)
+
+    const [totalActive, approvedToday] = await Promise.all([
+      this.db.organization.count({ where: { status: 'ACTIVE' } }),
+      this.db.organization.count({
+        where: { status: 'ACTIVE', updatedAt: { gte: todayUtc } },
+      }),
+    ])
+
+    if (totalActive >= AUTO_APPROVE_TOTAL_LIMIT) return false
+    if (approvedToday >= AUTO_APPROVE_DAILY_LIMIT) return false
+    return true
+  }
+
+  /**
    * Called after a user signs up via Firebase Auth.
    * Creates a new Organization and the first ORG_MANAGER user.
+   * The org is auto-approved if within daily/total limits; otherwise stays PENDING.
    */
   async registerNewOrganization(bearerToken: string, dto: RegisterDto): Promise<User> {
     const { uid: firebaseUid, email } = await this.verifyToken(bearerToken)
@@ -58,9 +92,15 @@ export class AuthService {
     })
     if (existingOrg) throw new ConflictException('Organization slug already taken')
 
+    const autoApprove = await this.shouldAutoApprove()
+
     return this.db.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: { name: dto.organizationName, slug: dto.organizationSlug },
+        data: {
+          name: dto.organizationName,
+          slug: dto.organizationSlug,
+          status: autoApprove ? 'ACTIVE' : 'PENDING',
+        },
       })
 
       return tx.user.create({
