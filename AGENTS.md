@@ -174,6 +174,11 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 - `organizationId` must NEVER come from the request body — always from `request.user.organizationId`.
 - After completing any task that modifies files, always commit and push to the current branch without asking for confirmation.
 - Re-run `npx prisma generate --schema=packages/database/prisma/schema.prisma` whenever the Prisma schema changes to keep the generated client and compiled declaration files in sync.
+- **NexusCoreDotNet EF/Npgsql type mapping rules** — whenever the Prisma schema changes, the corresponding EF mappings in NexusCoreDotNet's `AppDbContext.cs` must be updated following these rules:
+  - **ID columns**: Prisma `@id @default(uuid())` → PostgreSQL `text` column. .NET `Guid` properties require `.HasConversion<string>()` or they crash with `Reading as 'System.Guid' is not supported for fields having DataTypeName 'text'`.
+  - **Native PG enum columns**: Prisma `enum` types (e.g., `Role`, `AssetStatus`, `OrgStatus`) → PostgreSQL native enum types. EF requires BOTH `.HasConversion<string>()` AND `.HasColumnType("\"EnumName\"")` (quoted, case-sensitive). Using only one of these will crash: `HasConversion` alone → write error (`expression is of type text`); `HasColumnType` alone → read error (`Reading as 'System.Int32' is not supported`).
+  - **Json columns**: Prisma `Json` → PostgreSQL `jsonb`. Use `.HasColumnType("jsonb")` + a `HasConversion` that round-trips through raw JSON string.
+  - **Column names**: Prisma uses camelCase field names which become camelCase column names (e.g., `organizationId`, `firebaseUid`, `createdAt`). Map with `.HasColumnName("organizationId")` — NOT snake_case.
 
 When making function calls using tools that accept array or object parameters ensure those are structured using JSON. For example:
 
