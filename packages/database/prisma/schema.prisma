@@ -88,8 +88,8 @@ model Asset {
 model AuditLog {
   id        String   @id @default(uuid())
   action    String   // e.g., "ASSET_CREATED", "ASSET_UPDATED", "ASSET_DELETED"
-  actorId   String
-  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorId   String?
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   changes   Json     // { before: {...}, after: {...} }
   assetId   String?
   asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
