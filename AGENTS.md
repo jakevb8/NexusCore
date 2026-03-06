@@ -4,7 +4,10 @@
 
 NexusCoreJS is the JavaScript/TypeScript implementation of the NexusCore multi-tenant Resource Management SaaS. TurboRepo monorepo with a Next.js 15 static frontend and NestJS REST API, backed by Neon PostgreSQL via Prisma, Firebase Auth, and deployed to Firebase Hosting + Railway.
 
-**Sister repo:** `NexusCoreDotNet` at `/Users/jake/projects/NexusCoreDotNet` (GitHub: `jakevb8/NexusCoreDotNet`) — an ASP.NET Core 8 Razor Pages implementation of the same feature set, sharing the same Neon PostgreSQL database via Entity Framework Core.
+**Sister repos:**
+
+- `NexusCoreDotNet` at `/Users/jake/projects/NexusCoreDotNet` (GitHub: `jakevb8/NexusCoreDotNet`) — an ASP.NET Core 8 Razor Pages implementation of the same feature set, sharing the same Neon PostgreSQL database via Entity Framework Core.
+- `NexusCoreAndroid` at `/Users/jake/projects/NexusCoreAndroid` (GitHub: `jakevb8/NexusCoreAndroid`) — Android (Jetpack Compose) client app. Connects to either backend via a user-selectable toggle. Frontend feature changes must be propagated here; backend-only changes do not require Android changes.
 
 ## Cross-Repo Feature Parity
 
@@ -33,7 +36,7 @@ Both repos implement **exactly the same product features**. When a feature is ad
 | Role management           | ORG_MANAGER can change member roles; cannot assign SUPERADMIN                                        |
 | Rate limiting             | 300 req/15 min global; 5 req/hour on registration                                                    |
 
-**When working in this repo (NexusCoreJS):** After completing any feature change, note what the equivalent change would be in NexusCoreDotNet and implement it there too (open the NexusCoreDotNet project, make the corresponding change, commit, and push). If you cannot determine the equivalent .NET implementation, state clearly what was changed here and what needs to change in NexusCoreDotNet so the user can action it.
+**When working in this repo (NexusCoreJS):** After completing any feature change, propagate it to both sister repos: implement the equivalent change in NexusCoreDotNet (same session), and if the change affects UI/frontend behaviour, also update NexusCoreAndroid. Backend-only changes (migrations, business logic) do not require Android changes.
 
 **When working in NexusCoreDotNet:** Same rule applies in reverse — propagate to NexusCoreJS.
 
