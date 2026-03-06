@@ -40,6 +40,35 @@ Both repos implement **exactly the same product features**. When a feature is ad
 
 **When working in NexusCoreDotNet:** Same rule applies in reverse — propagate to NexusCoreJS.
 
+## NEVER COMMIT SECRETS — CRITICAL
+
+**This has caused incidents. Read carefully before every commit.**
+
+Files that must NEVER be committed to git:
+
+- `.env`, `.env.local`, `.env.production`, `*.env` — contain `FIREBASE_PRIVATE_KEY`, `DATABASE_URL`, `Resend__ApiKey`, etc.
+- `firebase-adminsdk-*.json` / any service account JSON — contains the Firebase private key
+- `google-services.json` — contains Firebase API keys; gitignored in NexusCoreAndroid; do NOT add to NexusCoreJS either
+- `appsettings.Development.json` — gitignored in NexusCoreDotNet; do NOT commit
+- Any file containing a real API key, private key, password, or connection string with credentials
+
+Before every `git add` or commit:
+
+1. Run `git diff --staged` and visually scan for any key/secret values
+2. If a secret was accidentally staged, run `git reset HEAD <file>` before committing
+3. If a secret was already committed, immediately: (a) rotate/revoke the key, (b) use BFG to purge it from history, (c) force-push
+
+**How to restore `google-services.json` in NexusCoreAndroid (gitignored, not committed):**
+
+```bash
+firebase apps:sdkconfig ANDROID 1:797114794124:android:312c60b42b3e0d9a663ba9 --project nexus-core-rms --out app/google-services.json
+```
+
+**History of incidents:**
+
+- `appsettings.json` in NexusCoreDotNet commit `8f41793` — Firebase Web API key committed, later removed and BFG-purged
+- `google-services.json` in NexusCoreAndroid commit `249569a` — Firebase API key committed, BFG-purged in security fix commit `615504e`
+
 ## Monorepo Structure
 
 ```
