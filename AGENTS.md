@@ -8,6 +8,8 @@ NexusCoreJS is the JavaScript/TypeScript implementation of the NexusCore multi-t
 
 - `NexusCoreDotNet` at `/Users/jake/projects/NexusCoreDotNet` (GitHub: `jakevb8/NexusCoreDotNet`) — an ASP.NET Core 8 Razor Pages implementation of the same feature set, sharing the same Neon PostgreSQL database via Entity Framework Core.
 - `NexusCoreAndroid` at `/Users/jake/projects/NexusCoreAndroid` (GitHub: `jakevb8/NexusCoreAndroid`) — Android (Jetpack Compose) client app. Connects to either backend via a user-selectable toggle. Frontend feature changes must be propagated here; backend-only changes do not require Android changes.
+- `NexusCoreReact` at `/Users/jake/projects/NexusCoreReact` (GitHub: `jakevb8/NexusCoreReact`) — Expo React Native cross-platform client (iOS + Android). Frontend feature changes must be propagated here; backend-only changes do not require React Native changes.
+- `NexusCoreIOS` at `/Users/jake/projects/NexusCoreIOS` (GitHub: `jakevb8/NexusCoreIOS`) — SwiftUI iOS native client. Frontend feature changes must be propagated here; backend-only changes do not require iOS changes.
 
 ## Cross-Repo Feature Parity
 
@@ -36,7 +38,7 @@ Both repos implement **exactly the same product features**. When a feature is ad
 | Role management           | ORG_MANAGER can change member roles; cannot assign SUPERADMIN                                        |
 | Rate limiting             | 300 req/15 min global; 5 req/hour on registration                                                    |
 
-**When working in this repo (NexusCoreJS):** After completing any feature change, propagate it to both sister repos: implement the equivalent change in NexusCoreDotNet (same session), and if the change affects UI/frontend behaviour, also update NexusCoreAndroid. Backend-only changes (migrations, business logic) do not require Android changes.
+**When working in this repo (NexusCoreJS):** After completing any feature change, propagate it to NexusCoreDotNet (same session), and if the change affects UI/frontend behaviour, also update NexusCoreAndroid, NexusCoreReact, and NexusCoreIOS. Backend-only changes (migrations, business logic) do not require client app changes.
 
 **When working in NexusCoreDotNet:** Same rule applies in reverse — propagate to NexusCoreJS.
 
