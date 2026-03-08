@@ -8,6 +8,8 @@ import {
 import { PrismaClient, Asset, AssetStatus } from '@nexus-core/database'
 import { CreateAssetDto, UpdateAssetDto, PaginationParams } from '@nexus-core/shared'
 import { AuditService } from '../audit/audit.service'
+import { KafkaProducerService } from '../kafka/kafka-producer.service'
+import { KAFKA_TOPIC_ASSET_STATUS_CHANGED, AssetStatusChangedEvent } from '../kafka/kafka.events'
 
 /** Maximum number of assets allowed per organization on the free trial. */
 export const TRIAL_ASSET_LIMIT = 100
@@ -17,6 +19,7 @@ export class AssetsService {
   constructor(
     @Inject('PRISMA') private readonly db: PrismaClient,
     private readonly auditService: AuditService,
+    private readonly kafkaProducer: KafkaProducerService,
   ) {}
 
   async findAll(organizationId: string, params: PaginationParams = {}) {
@@ -93,6 +96,21 @@ export class AssetsService {
       assetId: after.id,
       changes: { before, after },
     })
+
+    // Publish a Kafka event when the asset status changes
+    if (dto.status && dto.status !== before.status) {
+      const event: AssetStatusChangedEvent = {
+        eventType: 'ASSET_STATUS_CHANGED',
+        assetId: after.id,
+        organizationId,
+        actorId,
+        assetName: after.name,
+        previousStatus: before.status,
+        newStatus: after.status,
+        timestamp: new Date().toISOString(),
+      }
+      await this.kafkaProducer.publish(KAFKA_TOPIC_ASSET_STATUS_CHANGED, after.id, event)
+    }
 
     return after
   }

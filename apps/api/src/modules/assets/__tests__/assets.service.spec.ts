@@ -19,12 +19,16 @@ const mockAuditService = {
   log: vi.fn(),
 }
 
+const mockKafkaProducer = {
+  publish: vi.fn(),
+}
+
 describe('AssetsService', () => {
   let service: AssetsService
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new AssetsService(mockDb as any, mockAuditService as any)
+    service = new AssetsService(mockDb as any, mockAuditService as any, mockKafkaProducer as any)
   })
 
   describe('findAll', () => {
@@ -132,6 +136,50 @@ describe('AssetsService', () => {
           changes: expect.objectContaining({ before, after }),
         }),
       )
+    })
+
+    it('publishes a Kafka event when status changes', async () => {
+      const before = {
+        id: 'a1',
+        name: 'Laptop',
+        status: AssetStatus.AVAILABLE,
+        organizationId: 'org-1',
+      }
+      const after = { ...before, status: AssetStatus.IN_USE }
+      mockDb.asset.findFirst.mockResolvedValue(before)
+      mockDb.asset.update.mockResolvedValue(after)
+
+      await service.update('a1', { status: AssetStatus.IN_USE }, 'org-1', 'user-1')
+
+      expect(mockKafkaProducer.publish).toHaveBeenCalledWith(
+        'nexus.asset.status-changed',
+        'a1',
+        expect.objectContaining({
+          eventType: 'ASSET_STATUS_CHANGED',
+          assetId: 'a1',
+          organizationId: 'org-1',
+          actorId: 'user-1',
+          assetName: 'Laptop',
+          previousStatus: AssetStatus.AVAILABLE,
+          newStatus: AssetStatus.IN_USE,
+        }),
+      )
+    })
+
+    it('does not publish a Kafka event when status is unchanged', async () => {
+      const before = {
+        id: 'a1',
+        name: 'Laptop',
+        status: AssetStatus.AVAILABLE,
+        organizationId: 'org-1',
+      }
+      const after = { ...before, name: 'Laptop Pro' }
+      mockDb.asset.findFirst.mockResolvedValue(before)
+      mockDb.asset.update.mockResolvedValue(after)
+
+      await service.update('a1', { name: 'Laptop Pro' }, 'org-1', 'user-1')
+
+      expect(mockKafkaProducer.publish).not.toHaveBeenCalled()
     })
   })
 

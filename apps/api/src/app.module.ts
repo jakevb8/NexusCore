@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module'
 import { AssetsModule } from './modules/assets/assets.module'
 import { AuditModule } from './modules/audit/audit.module'
 import { ReportsModule } from './modules/reports/reports.module'
+import { KafkaProducerModule } from './modules/kafka/kafka-producer.module'
 import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard'
 import { RolesGuard } from './common/guards/roles.guard'
 
@@ -20,6 +21,7 @@ import { RolesGuard } from './common/guards/roles.guard'
     }),
     FirebaseModule,
     PrismaModule,
+    KafkaProducerModule,
     AuthModule,
     OrganizationsModule,
     UsersModule,
