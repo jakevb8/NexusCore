@@ -54,8 +54,8 @@ export default function DeleteAccountPage() {
               },
               {
                 step: '4',
-                title: 'Confirmation',
-                body: 'You will receive confirmation that your account deletion request has been received. Deletion is processed within 30 days.',
+                title: 'Deletion is immediate',
+                body: 'Your account and all associated data listed below are permanently deleted immediately upon confirmation. You will be signed out automatically.',
               },
             ].map(({ step, title, body }) => (
               <li key={step} className="flex gap-4">
@@ -77,10 +77,10 @@ export default function DeleteAccountPage() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Email us at{' '}
             <a
-              href="mailto:support@nexuscore.app"
+              href="mailto:jakev.dev@gmail.com"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              support@nexuscore.app
+              jakev.dev@gmail.com
             </a>{' '}
             from the email address associated with your account. Include the subject line{' '}
             <strong>Account Deletion Request</strong>. We will process your request within 30 days.
@@ -111,14 +111,9 @@ export default function DeleteAccountPage() {
           <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
             {[
               {
-                item: 'Anonymised audit log records',
+                item: 'Audit log records',
                 reason:
-                  'Retained for up to 90 days in anonymised form for security and compliance purposes. Your name and email are removed; only the action type and timestamp are kept.',
-              },
-              {
-                item: 'Billing and transaction records',
-                reason:
-                  'If applicable, retained for the period required by law (typically 7 years).',
+                  'Existing audit log entries that reference your account are anonymised on deletion — your user ID is removed (set to null) but the action type, timestamp, and affected asset record are retained for traceability. These records are not linked back to you.',
               },
             ].map(({ item, reason }) => (
               <li key={item} className="flex gap-2">
