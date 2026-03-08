@@ -50,7 +50,7 @@ export class AssetsService {
   }
 
   async create(dto: CreateAssetDto, organizationId: string, actorId: string): Promise<Asset> {
-    const existing = await this.db.asset.findUnique({ where: { sku: dto.sku } })
+    const existing = await this.db.asset.findFirst({ where: { sku: dto.sku, organizationId } })
     if (existing) throw new ConflictException(`SKU "${dto.sku}" already exists`)
 
     const assetCount = await this.db.asset.count({ where: { organizationId } })

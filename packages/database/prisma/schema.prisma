@@ -70,7 +70,7 @@ model User {
 model Asset {
   id             String      @id @default(uuid())
   name           String
-  sku            String      @unique
+  sku            String
   description    String?
   status         AssetStatus @default(AVAILABLE)
   assignedTo     String?     // userId of current assignee
@@ -80,6 +80,7 @@ model Asset {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  @@unique([sku, organizationId])
   @@index([organizationId])
   @@index([organizationId, status])
   @@map("assets")

@@ -59,7 +59,7 @@ describe('AssetsService', () => {
 
   describe('create', () => {
     it('creates an asset and logs the action', async () => {
-      mockDb.asset.findUnique.mockResolvedValue(null) // no conflict
+      mockDb.asset.findFirst.mockResolvedValueOnce(null) // no SKU conflict
       mockDb.asset.count.mockResolvedValue(0) // under trial limit
       const newAsset = { id: 'new-id', name: 'Monitor', sku: 'MON-001', organizationId: 'org-1' }
       mockDb.asset.create.mockResolvedValue(newAsset)
@@ -72,15 +72,26 @@ describe('AssetsService', () => {
       )
     })
 
-    it('throws ConflictException if SKU already exists', async () => {
-      mockDb.asset.findUnique.mockResolvedValue({ id: 'existing' })
+    it('throws ConflictException if SKU already exists within same org', async () => {
+      mockDb.asset.findFirst.mockResolvedValueOnce({ id: 'existing' }) // SKU taken in this org
       await expect(
         service.create({ name: 'Dup', sku: 'EXISTING-SKU' }, 'org-1', 'user-1'),
       ).rejects.toThrow(ConflictException)
     })
 
+    it('allows the same SKU to be created in a different org', async () => {
+      mockDb.asset.findFirst.mockResolvedValueOnce(null) // no conflict in org-2
+      mockDb.asset.count.mockResolvedValue(0)
+      const newAsset = { id: 'new-id', name: 'Laptop', sku: 'SAME-SKU', organizationId: 'org-2' }
+      mockDb.asset.create.mockResolvedValue(newAsset)
+
+      await expect(
+        service.create({ name: 'Laptop', sku: 'SAME-SKU' }, 'org-2', 'user-2'),
+      ).resolves.toEqual(newAsset)
+    })
+
     it('throws ForbiddenException when the trial asset limit is reached', async () => {
-      mockDb.asset.findUnique.mockResolvedValue(null) // no SKU conflict
+      mockDb.asset.findFirst.mockResolvedValueOnce(null) // no SKU conflict
       mockDb.asset.count.mockResolvedValue(TRIAL_ASSET_LIMIT) // at the limit
 
       await expect(
@@ -89,7 +100,7 @@ describe('AssetsService', () => {
     })
 
     it('does not throw when asset count is exactly one below the limit', async () => {
-      mockDb.asset.findUnique.mockResolvedValue(null)
+      mockDb.asset.findFirst.mockResolvedValueOnce(null)
       mockDb.asset.count.mockResolvedValue(TRIAL_ASSET_LIMIT - 1)
       const newAsset = { id: 'new-id', name: 'Last One', sku: 'LAST-001' }
       mockDb.asset.create.mockResolvedValue(newAsset)
@@ -141,10 +152,10 @@ describe('AssetsService', () => {
 
   describe('bulkImport', () => {
     it('returns created and skipped counts', async () => {
-      // First record: success; second record: duplicate SKU
-      mockDb.asset.findUnique
-        .mockResolvedValueOnce(null) // no SKU conflict for record 1
-        .mockResolvedValueOnce({ id: 'dup' }) // SKU conflict for record 2
+      // First record: no SKU conflict → creates; second record: SKU conflict → skipped
+      mockDb.asset.findFirst
+        .mockResolvedValueOnce(null) // SKU check for record 1 → no conflict
+        .mockResolvedValueOnce({ id: 'dup' }) // SKU check for record 2 → conflict
       mockDb.asset.count.mockResolvedValue(0)
       mockDb.asset.create.mockResolvedValue({ id: 'new' })
 
@@ -163,8 +174,8 @@ describe('AssetsService', () => {
     })
 
     it('sets limitReached and skips remaining rows when trial limit is hit', async () => {
-      // First call hits the limit; second is never even attempted
-      mockDb.asset.findUnique.mockResolvedValue(null)
+      // SKU check passes (no conflict), but count is at the limit
+      mockDb.asset.findFirst.mockResolvedValue(null)
       mockDb.asset.count.mockResolvedValue(TRIAL_ASSET_LIMIT)
 
       const result = await service.bulkImport(
