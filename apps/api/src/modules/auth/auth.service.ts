@@ -191,4 +191,37 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found')
     return user as any
   }
+
+  /**
+   * Delete the calling user's account:
+   *   1. Delete the user row (AuditLog.actorId → SetNull via Prisma cascade).
+   *   2. If they were the last member of their org, delete the org too
+   *      (cascades assets, invites).
+   *   3. Delete the Firebase Auth record.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.db.user.findUnique({ where: { id: userId } })
+    if (!user) throw new NotFoundException('User not found')
+
+    const remainingMembers = await this.db.user.count({
+      where: { organizationId: user.organizationId },
+    })
+
+    await this.db.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id: userId } })
+
+      if (remainingMembers === 1) {
+        // This user was the last member — wipe the org and all its data.
+        await tx.organization.delete({ where: { id: user.organizationId } })
+      }
+    })
+
+    // Remove Firebase Auth record — best-effort; do not let a Firebase failure
+    // roll back the DB deletion that already committed.
+    try {
+      await this.firebaseApp.auth().deleteUser(user.firebaseUid)
+    } catch (err) {
+      console.error('[deleteAccount] Failed to delete Firebase user', user.firebaseUid, err)
+    }
+  }
 }

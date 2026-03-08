@@ -45,12 +45,12 @@ export default function DeleteAccountPage() {
               {
                 step: '2',
                 title: 'Open Settings',
-                body: 'Navigate to Settings from the main menu.',
+                body: 'Tap the Settings link in the sidebar (web) or the Settings tab in the mobile app.',
               },
               {
                 step: '3',
                 title: 'Select "Delete Account"',
-                body: 'Scroll to the bottom of the Settings screen and tap "Delete Account". Confirm when prompted.',
+                body: 'Scroll to the Danger Zone section and click or tap "Delete Account". Confirm when prompted.',
               },
               {
                 step: '4',

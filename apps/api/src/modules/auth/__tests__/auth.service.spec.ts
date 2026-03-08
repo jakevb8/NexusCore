@@ -3,8 +3,8 @@ import { AuthService } from '../auth.service'
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common'
 
 const mockTx = {
-  organization: { create: vi.fn() },
-  user: { create: vi.fn() },
+  organization: { create: vi.fn(), delete: vi.fn() },
+  user: { create: vi.fn(), delete: vi.fn() },
   invite: { update: vi.fn() },
 }
 
@@ -12,6 +12,7 @@ const mockDb = {
   user: {
     findUnique: vi.fn(),
     update: vi.fn(),
+    count: vi.fn(),
   },
   organization: {
     findUnique: vi.fn(),
@@ -25,8 +26,9 @@ const mockDb = {
 
 // Mock Firebase Admin app — verifyIdToken returns a decoded token
 const mockVerifyIdToken = vi.fn()
+const mockDeleteUser = vi.fn()
 const mockFirebaseApp = {
-  auth: () => ({ verifyIdToken: mockVerifyIdToken }),
+  auth: () => ({ verifyIdToken: mockVerifyIdToken, deleteUser: mockDeleteUser }),
 }
 
 // Helpers
@@ -340,6 +342,57 @@ describe('AuthService', () => {
 
       expect(result).toBeNull()
       expect(mockDb.user.update).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('deleteAccount', () => {
+    const existingUser = {
+      id: 'user-1',
+      firebaseUid: 'firebase-uid-1',
+      email: 'admin@acme.com',
+      organizationId: 'org-1',
+      role: 'ORG_MANAGER',
+    }
+
+    it('deletes user and org when user is the last member', async () => {
+      mockDb.user.findUnique.mockResolvedValue(existingUser)
+      mockDb.user.count.mockResolvedValue(1) // only one member
+      mockDeleteUser.mockResolvedValue(undefined)
+
+      await service.deleteAccount('user-1')
+
+      expect(mockTx.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } })
+      expect(mockTx.organization.delete).toHaveBeenCalledWith({ where: { id: 'org-1' } })
+      expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-1')
+    })
+
+    it('deletes only the user when other members remain in the org', async () => {
+      mockDb.user.findUnique.mockResolvedValue(existingUser)
+      mockDb.user.count.mockResolvedValue(3) // three members
+      mockDeleteUser.mockResolvedValue(undefined)
+
+      await service.deleteAccount('user-1')
+
+      expect(mockTx.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } })
+      expect(mockTx.organization.delete).not.toHaveBeenCalled()
+      expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-1')
+    })
+
+    it('throws NotFoundException when user does not exist', async () => {
+      mockDb.user.findUnique.mockResolvedValue(null)
+
+      await expect(service.deleteAccount('nonexistent')).rejects.toThrow(NotFoundException)
+      expect(mockTx.user.delete).not.toHaveBeenCalled()
+    })
+
+    it('still resolves successfully when Firebase deleteUser fails', async () => {
+      mockDb.user.findUnique.mockResolvedValue(existingUser)
+      mockDb.user.count.mockResolvedValue(1)
+      mockDeleteUser.mockRejectedValue(new Error('Firebase error'))
+
+      // Should not throw — Firebase failure is best-effort
+      await expect(service.deleteAccount('user-1')).resolves.toBeUndefined()
+      expect(mockTx.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } })
     })
   })
 })

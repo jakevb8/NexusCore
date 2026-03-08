@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, UnauthorizedException } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { IsString, IsOptional, MinLength, Matches } from 'class-validator'
 import { Request } from 'express'
@@ -40,6 +50,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   async getMe(@CurrentUser() user: User) {
     return this.authService.getMe(user.id)
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete own account and all associated data' })
+  async deleteMe(@CurrentUser() user: User) {
+    return this.authService.deleteAccount(user.id)
   }
 
   @Post('register')
