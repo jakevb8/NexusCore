@@ -90,6 +90,18 @@ export interface InviteDto {
   acceptedAt: string | null
 }
 
+export interface KafkaEventDto {
+  id: string
+  organizationId: string
+  assetId: string
+  assetName: string
+  previousStatus: string
+  newStatus: string
+  actorId: string
+  occurredAt: string
+  createdAt: string
+}
+
 // ─── Request DTOs ──────────────────────────────────────────────────────────────
 
 export interface CreateAssetDto {

@@ -102,6 +102,22 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model KafkaEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  assetId        String
+  assetName      String
+  previousStatus String
+  newStatus      String
+  actorId        String
+  occurredAt     DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, occurredAt])
+  @@map("kafka_events")
+}
+
 model Invite {
   id             String       @id @default(uuid())
   email          String
