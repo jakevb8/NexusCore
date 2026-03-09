@@ -1,8 +1,13 @@
 # NexusCoreJS
 
-Multi-tenant Resource Management SaaS. Organizations track physical or digital assets, manage team members with role-based access, and view utilization analytics — all behind Firebase Authentication and an admin-approval workflow.
+Multi-tenant Resource Management SaaS. Organizations track physical or digital assets, manage team members with role-based access, view utilization analytics, and stream real-time asset status change events via Kafka — all behind Firebase Authentication and an admin-approval workflow.
 
-> **Sister repo:** [NexusCoreDotNet](https://github.com/jakevb8/NexusCoreDotNet) — identical feature set built with ASP.NET Core 8 Razor Pages + Entity Framework Core.
+> **Sister repos:**
+>
+> - [NexusCoreDotNet](https://github.com/jakevb8/NexusCoreDotNet) — identical feature set, ASP.NET Core 8 Razor Pages + EF Core (shares the same Neon database)
+> - [NexusCoreAndroid](https://github.com/jakevb8/NexusCoreAndroid) — Jetpack Compose Android client
+> - [NexusCoreReact](https://github.com/jakevb8/NexusCoreReact) — Expo React Native cross-platform client
+> - [NexusCoreIOS](https://github.com/jakevb8/NexusCoreIOS) — SwiftUI iOS native client
 
 **Live demo:** https://nexus-core-rms.web.app
 
@@ -10,15 +15,16 @@ Multi-tenant Resource Management SaaS. Organizations track physical or digital a
 
 ## Tech Stack
 
-| Layer    | Technology                                                                          |
-| -------- | ----------------------------------------------------------------------------------- |
-| Frontend | Next.js 15 (static export), Tailwind CSS v4, TanStack Query, react-hook-form + Zod  |
-| Backend  | NestJS 10 (REST API), deployed to Railway                                           |
-| Database | PostgreSQL on Neon (serverless), Prisma ORM                                         |
-| Auth     | Firebase Authentication — **Google sign-in only**                                   |
-| Hosting  | Firebase Hosting (frontend) + Railway (API)                                         |
-| Monorepo | TurboRepo with shared `packages/`                                                   |
-| CI/CD    | GitHub Actions — test → migrate → build → deploy on push to `main`                  |
+| Layer     | Technology                                                                          |
+| --------- | ----------------------------------------------------------------------------------- |
+| Frontend  | Next.js 15 (static export), Tailwind CSS v4, TanStack Query, react-hook-form + Zod  |
+| Backend   | NestJS 10 (REST API), deployed to Railway                                           |
+| Database  | PostgreSQL on Neon (serverless), Prisma ORM                                         |
+| Auth      | Firebase Authentication — **Google sign-in only**                                   |
+| Hosting   | Firebase Hosting (frontend) + Railway (API)                                         |
+| Monorepo  | TurboRepo with shared `packages/`                                                   |
+| Messaging | Apache Kafka (Railway), `kafka-consumer` microservice persists events to PostgreSQL |
+| CI/CD     | GitHub Actions — test → migrate → build → deploy on push to `main`                  |
 
 ---
 
@@ -32,6 +38,7 @@ Multi-tenant Resource Management SaaS. Organizations track physical or digital a
 - **Reports & analytics** — utilization rate and asset-by-status breakdown, with an in-memory 5-minute TTL cache
 - **Team invites** — ORG_MANAGERs invite members by email (via Resend) with a scoped role; invites expire after 7 days; copy-link fallback available
 - **Remove members** — ORG_MANAGERs can remove team members; self-removal and SUPERADMIN removal are blocked
+- **Kafka event stream** — asset status changes are published to Kafka and consumed by a dedicated microservice that persists them to `kafka_events`; browsable via `GET /v1/events` and the Events page
 - **Rate limiting** — 300 req/15 min global; 5 req/hour per IP on the registration endpoint
 - **Security** — Helmet headers, CORS locked to known origins, Firebase ID token verification on every protected request
 
@@ -42,14 +49,15 @@ Multi-tenant Resource Management SaaS. Organizations track physical or digital a
 ```
 NexusCoreJS/
 ├── apps/
-│   ├── api/          — NestJS REST API (deployed to Railway)
-│   └── web/          — Next.js 15 static export (Firebase Hosting)
+│   ├── api/              — NestJS REST API (deployed to Railway)
+│   ├── web/              — Next.js 15 static export (Firebase Hosting)
+│   └── kafka-consumer/   — NestJS Kafka microservice (persists events to DB, deployed to Railway)
 ├── packages/
-│   ├── database/     — Prisma schema, PrismaClient singleton
-│   └── shared/       — DTOs, enums, ROLE_HIERARCHY, hasRole()
+│   ├── database/         — Prisma schema, PrismaClient singleton
+│   └── shared/           — DTOs, enums, ROLE_HIERARCHY, hasRole()
 └── .github/
     └── workflows/
-        └── ci.yml    — test → migrate → build → deploy
+        └── ci.yml        — test → migrate → build → deploy
 ```
 
 ---
@@ -136,7 +144,7 @@ npm run test:coverage   # must pass 80% statement/branch threshold
 npm run type-check      # TypeScript strict check across all packages
 ```
 
-Tests live in `apps/api/src/modules/**/__tests__/` and use Vitest with a mocked PrismaClient. 71 tests, all passing.
+Tests live in `apps/api/src/modules/**/__tests__/` and use Vitest with a mocked PrismaClient. 89 tests, all passing.
 
 ---
 
@@ -149,7 +157,7 @@ Deployment is fully automated via GitHub Actions on push to `main`:
 3. Next.js static export built with injected env vars
 4. Frontend deployed to Firebase Hosting
 
-The NestJS API is hosted on **Railway** and auto-deploys from `main` via the `Dockerfile` at the repo root.
+The NestJS API and Kafka consumer are hosted on **Railway** and auto-deploy from `main` via the `Dockerfile` at the repo root.
 
 ### Railway setup (one-time)
 
@@ -163,6 +171,15 @@ The NestJS API is hosted on **Railway** and auto-deploys from `main` via the `Do
    - `RESEND_API_KEY` → your Resend API key (invite emails use `onboarding@resend.dev`)
    - `NODE_ENV` → `production`
 5. Copy the Railway public URL and set `NEXT_PUBLIC_API_URL` in GitHub secrets to `<railway-url>/api/v1`
+
+### Kafka consumer Railway service
+
+The `apps/kafka-consumer` directory contains a separate NestJS Kafka consumer that:
+
+- Subscribes to `nexus.asset.status-changed` events on Kafka
+- Persists each event to the `kafka_events` PostgreSQL table
+- Deploy as a separate Railway service with Root Directory = `apps/kafka-consumer`
+- Requires `DATABASE_URL`, `DATABASE_DIRECT_URL`, and `KAFKA_BROKER` env vars
 
 ### Required GitHub Secrets
 
@@ -180,28 +197,30 @@ The NestJS API is hosted on **Railway** and auto-deploys from `main` via the `Do
 
 All routes are prefixed `/api/v1` and require a Firebase ID token via `Authorization: Bearer <token>` unless marked public.
 
-| Method | Path                         | Role required           | Description                                  |
-| ------ | ---------------------------- | ----------------------- | -------------------------------------------- |
-| POST   | `/auth/register`             | public (Firebase token) | Register a new organization                  |
-| POST   | `/auth/accept-invite`        | public (Firebase token) | Accept an org invite                         |
-| GET    | `/auth/me`                   | any DB user             | Get current user + organization              |
-| GET    | `/organizations`             | SUPERADMIN              | List all organizations                       |
-| GET    | `/organizations/pending`     | SUPERADMIN              | List pending organizations                   |
-| PATCH  | `/organizations/:id/approve` | SUPERADMIN              | Approve a pending org                        |
-| PATCH  | `/organizations/:id/reject`  | SUPERADMIN              | Reject a pending org                         |
-| GET    | `/assets`                    | VIEWER+                 | List assets (paginated + search)             |
-| POST   | `/assets`                    | ORG_MANAGER+            | Create an asset (100-asset trial limit)      |
-| PUT    | `/assets/:id`                | ORG_MANAGER+            | Update an asset                              |
-| DELETE | `/assets/:id`                | ORG_MANAGER+            | Delete an asset                              |
-| POST   | `/assets/import/csv`         | ORG_MANAGER+            | Bulk import via CSV (stops at trial limit)   |
-| GET    | `/users`                     | ORG_MANAGER+            | List org members                             |
-| POST   | `/users/invite`              | ORG_MANAGER+            | Invite a new member by email                 |
-| GET    | `/users/invites`             | ORG_MANAGER+            | List pending invites                         |
-| DELETE | `/users/invites/:id`         | ORG_MANAGER+            | Delete a pending invite                      |
-| PATCH  | `/users/:id/role`            | ORG_MANAGER+            | Update a member's role                       |
-| DELETE | `/users/:id`                 | ORG_MANAGER+            | Remove a member from the org                 |
-| GET    | `/reports/stats`             | VIEWER+                 | Asset utilization + status breakdown         |
-| GET    | `/audit/asset/:id`           | VIEWER+                 | Audit log for a specific asset               |
+| Method | Path                         | Role required           | Description                                |
+| ------ | ---------------------------- | ----------------------- | ------------------------------------------ |
+| POST   | `/auth/register`             | public (Firebase token) | Register a new organization                |
+| POST   | `/auth/accept-invite`        | public (Firebase token) | Accept an org invite                       |
+| GET    | `/auth/me`                   | any DB user             | Get current user + organization            |
+| GET    | `/organizations`             | SUPERADMIN              | List all organizations                     |
+| GET    | `/organizations/pending`     | SUPERADMIN              | List pending organizations                 |
+| PATCH  | `/organizations/:id/approve` | SUPERADMIN              | Approve a pending org                      |
+| PATCH  | `/organizations/:id/reject`  | SUPERADMIN              | Reject a pending org                       |
+| GET    | `/assets`                    | VIEWER+                 | List assets (paginated + search)           |
+| POST   | `/assets`                    | ASSET_MANAGER+          | Create an asset (100-asset trial limit)    |
+| PUT    | `/assets/:id`                | ASSET_MANAGER+          | Update an asset                            |
+| DELETE | `/assets/:id`                | ASSET_MANAGER+          | Delete an asset                            |
+| POST   | `/assets/import/csv`         | ASSET_MANAGER+          | Bulk import via CSV (stops at trial limit) |
+| GET    | `/assets/sample-csv`         | VIEWER+                 | Download sample CSV template               |
+| GET    | `/users`                     | ORG_MANAGER+            | List org members                           |
+| POST   | `/users/invite`              | ORG_MANAGER+            | Invite a new member by email               |
+| GET    | `/users/invites`             | ORG_MANAGER+            | List pending invites                       |
+| DELETE | `/users/invites/:id`         | ORG_MANAGER+            | Delete a pending invite                    |
+| PATCH  | `/users/:id/role`            | ORG_MANAGER+            | Update a member's role                     |
+| DELETE | `/users/:id`                 | ORG_MANAGER+            | Remove a member from the org               |
+| GET    | `/reports/stats`             | VIEWER+                 | Asset utilization + status breakdown       |
+| GET    | `/audit/asset/:id`           | VIEWER+                 | Audit log for a specific asset             |
+| GET    | `/events`                    | VIEWER+                 | Paginated Kafka asset status change events |
 
 ---
 

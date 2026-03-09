@@ -207,6 +207,7 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 - Prisma schema is in `packages/database/prisma/schema.prisma`, not in `apps/api/`.
 - `organizationId` must NEVER come from the request body — always from `request.user.organizationId`.
 - After completing any task that modifies files, always commit and push to the current branch without asking for confirmation.
+- **README maintenance**: After any feature addition, removal, or significant change, update `README.md` in every affected repo to reflect the current feature set, API table, tech stack, and test count. The READMEs are the public-facing source of truth and must not fall behind the code.
 - Re-run `npx prisma generate --schema=packages/database/prisma/schema.prisma` whenever the Prisma schema changes to keep the generated client and compiled declaration files in sync.
 - **NexusCoreDotNet EF/Npgsql type mapping rules** — whenever the Prisma schema changes, the corresponding EF mappings in NexusCoreDotNet's `AppDbContext.cs` must be updated following these rules:
   - **ID columns**: Prisma `@id @default(uuid())` → PostgreSQL `text` column. .NET `Guid` properties require `.HasConversion<string>()` or they crash with `Reading as 'System.Guid' is not supported for fields having DataTypeName 'text'`.
