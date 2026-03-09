@@ -9,7 +9,7 @@
     "public": "apps/web/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
-    "trailingSlash": false,
+    "trailingSlash": true,
     "headers": [
       {
         "source": "**/*.@(js|css)",
