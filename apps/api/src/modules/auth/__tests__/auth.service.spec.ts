@@ -16,7 +16,6 @@ const mockDb = {
   },
   organization: {
     findUnique: vi.fn(),
-    count: vi.fn(),
   },
   invite: {
     findUnique: vi.fn(),
@@ -35,11 +34,6 @@ const mockFirebaseApp = {
 const VALID_TOKEN = 'valid-firebase-token'
 const makeDecoded = (uid: string, email: string) => ({ uid, email })
 
-/** Set up the org.count mock to return [totalActive, approvedToday] */
-function mockOrgCounts(totalActive: number, approvedToday: number) {
-  mockDb.organization.count.mockResolvedValueOnce(totalActive).mockResolvedValueOnce(approvedToday)
-}
-
 describe('AuthService', () => {
   let service: AuthService
 
@@ -53,7 +47,6 @@ describe('AuthService', () => {
       mockVerifyIdToken.mockResolvedValue(makeDecoded('firebase-uid-1', 'admin@acme.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue(null)
-      mockOrgCounts(0, 0) // within limits → auto-approve
 
       const org = { id: 'org-1', name: 'Acme', slug: 'acme', status: 'ACTIVE' }
       const user = { id: 'user-1', email: 'admin@acme.com', role: 'ORG_MANAGER' }
@@ -82,11 +75,10 @@ describe('AuthService', () => {
       )
     })
 
-    it('auto-approves org when under both daily and total limits', async () => {
+    it('always creates org as ACTIVE (auto-approve limits removed)', async () => {
       mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'a@b.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue(null)
-      mockOrgCounts(10, 2) // 10 total active (< 50), 2 today (< 5)
       mockTx.organization.create.mockResolvedValue({ id: 'org-1' })
       mockTx.user.create.mockResolvedValue({ id: 'user-1' })
 
@@ -97,42 +89,6 @@ describe('AuthService', () => {
 
       expect(mockTx.organization.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'ACTIVE' }) }),
-      )
-    })
-
-    it('creates org as PENDING when daily auto-approve limit is reached', async () => {
-      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'a@b.com'))
-      mockDb.user.findUnique.mockResolvedValue(null)
-      mockDb.organization.findUnique.mockResolvedValue(null)
-      mockOrgCounts(10, 5) // 5 approved today → daily limit hit
-      mockTx.organization.create.mockResolvedValue({ id: 'org-1' })
-      mockTx.user.create.mockResolvedValue({ id: 'user-1' })
-
-      await service.registerNewOrganization(VALID_TOKEN, {
-        organizationName: 'C',
-        organizationSlug: 'c',
-      })
-
-      expect(mockTx.organization.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING' }) }),
-      )
-    })
-
-    it('creates org as PENDING when total active org limit is reached', async () => {
-      mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'a@b.com'))
-      mockDb.user.findUnique.mockResolvedValue(null)
-      mockDb.organization.findUnique.mockResolvedValue(null)
-      mockOrgCounts(50, 0) // 50 total active → total limit hit
-      mockTx.organization.create.mockResolvedValue({ id: 'org-1' })
-      mockTx.user.create.mockResolvedValue({ id: 'user-1' })
-
-      await service.registerNewOrganization(VALID_TOKEN, {
-        organizationName: 'D',
-        organizationSlug: 'd',
-      })
-
-      expect(mockTx.organization.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING' }) }),
       )
     })
 
@@ -176,7 +132,6 @@ describe('AuthService', () => {
       mockVerifyIdToken.mockResolvedValue(makeDecoded('uid', 'a@b.com'))
       mockDb.user.findUnique.mockResolvedValue(null)
       mockDb.organization.findUnique.mockResolvedValue(null)
-      mockOrgCounts(0, 0)
       mockTx.organization.create.mockResolvedValue({ id: 'org-1' })
       mockTx.user.create.mockResolvedValue({ id: 'user-1' })
 
