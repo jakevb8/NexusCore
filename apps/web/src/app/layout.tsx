@@ -11,6 +11,9 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 export const metadata: Metadata = {
   title: 'NexusCoreJS | Resource Management',
   description: 'NexusCoreJS — Multi-tenant enterprise resource management system',
+  verification: {
+    google: 'b6b96cdf6a259487',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
