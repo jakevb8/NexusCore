@@ -19,14 +19,7 @@ export interface AcceptInviteDto {
   displayName?: string
 }
 
-/** Auto-approve up to this many new orgs per calendar day (UTC). */
-const AUTO_APPROVE_DAILY_LIMIT = 5
-
-/**
- * Once the total number of ACTIVE orgs reaches this threshold,
- * stop auto-approving and require manual SUPERADMIN review.
- */
-const AUTO_APPROVE_TOTAL_LIMIT = 50
+// Org creation limits removed — all new orgs are auto-approved on registration.
 
 @Injectable()
 export class AuthService {
@@ -88,26 +81,17 @@ export class AuthService {
    *   2. If orgs auto-approved today (UTC) >= AUTO_APPROVE_DAILY_LIMIT → manual approval required.
    *   3. Otherwise → auto-approve.
    */
+  /**
+   * All new organizations are auto-approved on registration.
+   */
   async shouldAutoApprove(): Promise<boolean> {
-    const todayUtc = new Date()
-    todayUtc.setUTCHours(0, 0, 0, 0)
-
-    const [totalActive, approvedToday] = await Promise.all([
-      this.db.organization.count({ where: { status: 'ACTIVE' } }),
-      this.db.organization.count({
-        where: { status: 'ACTIVE', updatedAt: { gte: todayUtc } },
-      }),
-    ])
-
-    if (totalActive >= AUTO_APPROVE_TOTAL_LIMIT) return false
-    if (approvedToday >= AUTO_APPROVE_DAILY_LIMIT) return false
     return true
   }
 
   /**
    * Called after a user signs up via Firebase Auth.
    * Creates a new Organization and the first ORG_MANAGER user.
-   * The org is auto-approved if within daily/total limits; otherwise stays PENDING.
+   * The org is always created as ACTIVE.
    */
   async registerNewOrganization(bearerToken: string, dto: RegisterDto): Promise<User> {
     const { uid: firebaseUid, email } = await this.verifyToken(bearerToken)
