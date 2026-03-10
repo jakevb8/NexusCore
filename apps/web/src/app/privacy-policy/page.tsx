@@ -17,8 +17,8 @@ export default function PrivacyPolicyPage() {
           <h1 className="mb-4 text-3xl font-bold">Privacy Policy</h1>
           <p className="text-base leading-relaxed text-gray-600 dark:text-gray-400">
             This policy explains what data NexusCore collects, how it is used, and your rights
-            regarding that data. NexusCore is a multi-tenant resource management application
-            available on web and Android.
+            regarding that data.             NexusCore is a multi-tenant resource management application
+            available on web, iOS, and Android.
           </p>
         </div>
 
