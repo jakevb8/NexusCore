@@ -208,7 +208,7 @@ Allowed origins are hardcoded in `apps/api/src/main.ts`:
 - `FIREBASE_PRIVATE_KEY` in env must have literal `\n` replaced: `.replace(/\\n/g, '\n')` is done in `firebase.module.ts` already.
 - Prisma schema is in `packages/database/prisma/schema.prisma`, not in `apps/api/`.
 - `organizationId` must NEVER come from the request body — always from `request.user.organizationId`.
-- After completing any task that modifies files, always commit and push to the current branch without asking for confirmation.
+- After completing any task that modifies files, always run the test suite (`npx vitest run --config apps/api/vitest.config.ts --coverage`) and fix any failures before committing. Then commit and push to the current branch without asking for confirmation.
 - **README maintenance**: After any feature addition, removal, or significant change, update `README.md` in every affected repo to reflect the current feature set, API table, tech stack, and test count. The READMEs are the public-facing source of truth and must not fall behind the code.
 - Re-run `npx prisma generate --schema=packages/database/prisma/schema.prisma` whenever the Prisma schema changes to keep the generated client and compiled declaration files in sync.
 - **NexusCoreDotNet EF/Npgsql type mapping rules** — whenever the Prisma schema changes, the corresponding EF mappings in NexusCoreDotNet's `AppDbContext.cs` must be updated following these rules:
