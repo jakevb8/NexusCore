@@ -99,6 +99,7 @@ export class AssetsController {
       columns: true,
       skip_empty_lines: true,
       trim: true,
+      relax_quotes: true,
     }) as CreateAssetDto[]
 
     return this.assetsService.bulkImport(records, user.organizationId, user.id)
