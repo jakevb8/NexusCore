@@ -30,18 +30,23 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Only need the API's production deps (nest build bundles app code via webpack)
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN npm ci --omit=dev
+# Skip postinstall prisma generate during npm ci — we run it explicitly below
+# after the schema is present, so the generated client is always up to date.
+RUN PRISMA_SKIP_POSTINSTALL_GENERATE=true npm ci --omit=dev
 
-# Copy compiled bundle and generated Prisma client JS wrappers.
-# The HTTP adapter eliminates the native query engine binary, but
-# @prisma/client still needs the generated JS/TS files in node_modules/.prisma/client/.
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy schema so prisma generate can run in the runner stage
+COPY packages/database/prisma/schema.prisma ./packages/database/prisma/schema.prisma
+
+# Generate the Prisma client against the correct Linux target (no native binary
+# needed — the Neon HTTP adapter bypasses the query engine entirely).
+RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
+
+# Copy compiled webpack bundle
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 3001
