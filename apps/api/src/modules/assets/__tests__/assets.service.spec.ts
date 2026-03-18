@@ -22,12 +22,18 @@ const mockAuditService = {
   log: vi.fn(),
 }
 
+const mockKafkaProducer = {
+  publish: vi.fn(),
+}
+
 describe('AssetsService', () => {
   let service: AssetsService
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new AssetsService(mockDb as any, mockAuditService as any)
+    // Default: Kafka disabled (KAFKA_ENABLED not set)
+    delete process.env.KAFKA_ENABLED
+    service = new AssetsService(mockDb as any, mockAuditService as any, mockKafkaProducer as any)
   })
 
   describe('findAll', () => {
@@ -137,7 +143,7 @@ describe('AssetsService', () => {
       )
     })
 
-    it('records a status change event in the database when status changes', async () => {
+    it('records a status change event in the database when KAFKA_ENABLED is off (default)', async () => {
       const before = {
         id: 'a1',
         name: 'Laptop',
@@ -161,6 +167,37 @@ describe('AssetsService', () => {
           newStatus: AssetStatus.IN_USE,
         }),
       })
+      expect(mockKafkaProducer.publish).not.toHaveBeenCalled()
+    })
+
+    it('publishes a Kafka event (not a DB write) when KAFKA_ENABLED=true', async () => {
+      process.env.KAFKA_ENABLED = 'true'
+      service = new AssetsService(mockDb as any, mockAuditService as any, mockKafkaProducer as any)
+
+      const before = {
+        id: 'a1',
+        name: 'Laptop',
+        status: AssetStatus.AVAILABLE,
+        organizationId: 'org-1',
+      }
+      const after = { ...before, status: AssetStatus.IN_USE }
+      mockDb.asset.findFirst.mockResolvedValue(before)
+      mockDb.asset.update.mockResolvedValue(after)
+      mockKafkaProducer.publish.mockResolvedValue(undefined)
+
+      await service.update('a1', { status: AssetStatus.IN_USE }, 'org-1', 'user-1')
+
+      expect(mockKafkaProducer.publish).toHaveBeenCalledWith(
+        'nexus.asset.status-changed',
+        'a1',
+        expect.objectContaining({
+          eventType: 'ASSET_STATUS_CHANGED',
+          assetId: 'a1',
+          previousStatus: AssetStatus.AVAILABLE,
+          newStatus: AssetStatus.IN_USE,
+        }),
+      )
+      expect(mockDb.kafkaEvent.create).not.toHaveBeenCalled()
     })
 
     it('does not record a status change event when status is unchanged', async () => {

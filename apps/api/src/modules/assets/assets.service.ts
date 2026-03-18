@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   ConflictException,
   ForbiddenException,
@@ -8,15 +9,21 @@ import {
 import { PrismaClient, Asset, AssetStatus } from '@nexus-core/database'
 import { CreateAssetDto, UpdateAssetDto, PaginationParams } from '@nexus-core/shared'
 import { AuditService } from '../audit/audit.service'
+import { KafkaProducerService } from '../kafka/kafka-producer.service'
+import { KAFKA_TOPIC_ASSET_STATUS_CHANGED, AssetStatusChangedEvent } from '../kafka/kafka.events'
 
 /** Maximum number of assets allowed per organization on the free trial. */
 export const TRIAL_ASSET_LIMIT = 100
 
 @Injectable()
 export class AssetsService {
+  private readonly logger = new Logger(AssetsService.name)
+  private readonly kafkaEnabled = process.env.KAFKA_ENABLED === 'true'
+
   constructor(
     @Inject('PRISMA') private readonly db: PrismaClient,
     private readonly auditService: AuditService,
+    private readonly kafkaProducer: KafkaProducerService,
   ) {}
 
   async findAll(organizationId: string, params: PaginationParams = {}) {
@@ -94,19 +101,36 @@ export class AssetsService {
       changes: { before, after },
     })
 
-    // Record the status change event directly to the database
+    // Record a status change event. When KAFKA_ENABLED=true the event is
+    // published to the Kafka topic and the kafka-consumer service persists it.
+    // When disabled (default), we write directly to the DB — no broker required.
     if (dto.status && dto.status !== before.status) {
-      await this.db.kafkaEvent.create({
-        data: {
+      if (this.kafkaEnabled) {
+        const event: AssetStatusChangedEvent = {
+          eventType: 'ASSET_STATUS_CHANGED',
           assetId: after.id,
           organizationId,
           actorId,
           assetName: after.name,
           previousStatus: before.status,
           newStatus: after.status,
-          occurredAt: new Date(),
-        },
-      })
+          timestamp: new Date().toISOString(),
+        }
+        await this.kafkaProducer.publish(KAFKA_TOPIC_ASSET_STATUS_CHANGED, after.id, event)
+        this.logger.debug(`Published status-changed event for asset ${after.id} via Kafka`)
+      } else {
+        await this.db.kafkaEvent.create({
+          data: {
+            assetId: after.id,
+            organizationId,
+            actorId,
+            assetName: after.name,
+            previousStatus: before.status,
+            newStatus: after.status,
+            occurredAt: new Date(),
+          },
+        })
+      }
     }
 
     return after
