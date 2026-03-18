@@ -38,7 +38,10 @@ COPY packages/shared/package.json ./packages/shared/
 
 RUN npm ci --omit=dev
 
-# Copy compiled bundle — no native .prisma binary needed with the Neon HTTP adapter
+# Copy compiled bundle and generated Prisma client JS wrappers.
+# The HTTP adapter eliminates the native query engine binary, but
+# @prisma/client still needs the generated JS/TS files in node_modules/.prisma/client/.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 EXPOSE 3001
