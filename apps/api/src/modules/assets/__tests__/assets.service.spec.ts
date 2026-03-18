@@ -13,14 +13,13 @@ const mockDb = {
     update: vi.fn(),
     delete: vi.fn(),
   },
+  kafkaEvent: {
+    create: vi.fn(),
+  },
 }
 
 const mockAuditService = {
   log: vi.fn(),
-}
-
-const mockKafkaProducer = {
-  publish: vi.fn(),
 }
 
 describe('AssetsService', () => {
@@ -28,7 +27,7 @@ describe('AssetsService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new AssetsService(mockDb as any, mockAuditService as any, mockKafkaProducer as any)
+    service = new AssetsService(mockDb as any, mockAuditService as any)
   })
 
   describe('findAll', () => {
@@ -138,7 +137,7 @@ describe('AssetsService', () => {
       )
     })
 
-    it('publishes a Kafka event when status changes', async () => {
+    it('records a status change event in the database when status changes', async () => {
       const before = {
         id: 'a1',
         name: 'Laptop',
@@ -148,14 +147,12 @@ describe('AssetsService', () => {
       const after = { ...before, status: AssetStatus.IN_USE }
       mockDb.asset.findFirst.mockResolvedValue(before)
       mockDb.asset.update.mockResolvedValue(after)
+      mockDb.kafkaEvent.create.mockResolvedValue({})
 
       await service.update('a1', { status: AssetStatus.IN_USE }, 'org-1', 'user-1')
 
-      expect(mockKafkaProducer.publish).toHaveBeenCalledWith(
-        'nexus.asset.status-changed',
-        'a1',
-        expect.objectContaining({
-          eventType: 'ASSET_STATUS_CHANGED',
+      expect(mockDb.kafkaEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
           assetId: 'a1',
           organizationId: 'org-1',
           actorId: 'user-1',
@@ -163,10 +160,10 @@ describe('AssetsService', () => {
           previousStatus: AssetStatus.AVAILABLE,
           newStatus: AssetStatus.IN_USE,
         }),
-      )
+      })
     })
 
-    it('does not publish a Kafka event when status is unchanged', async () => {
+    it('does not record a status change event when status is unchanged', async () => {
       const before = {
         id: 'a1',
         name: 'Laptop',
@@ -179,7 +176,7 @@ describe('AssetsService', () => {
 
       await service.update('a1', { name: 'Laptop Pro' }, 'org-1', 'user-1')
 
-      expect(mockKafkaProducer.publish).not.toHaveBeenCalled()
+      expect(mockDb.kafkaEvent.create).not.toHaveBeenCalled()
     })
   })
 
