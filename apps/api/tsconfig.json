@@ -11,6 +11,6 @@
       "@nexus-core/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "functions/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }
