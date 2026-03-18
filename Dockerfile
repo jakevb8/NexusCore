@@ -30,8 +30,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Only need the API's production deps (nest build bundles app code,
-# but native modules like @prisma/client still need node_modules)
+# Only need the API's production deps (nest build bundles app code via webpack)
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/database/package.json ./packages/database/
@@ -39,9 +38,8 @@ COPY packages/shared/package.json ./packages/shared/
 
 RUN npm ci --omit=dev
 
-# Copy compiled bundle and generated Prisma client
+# Copy compiled bundle — no native .prisma binary needed with the Neon HTTP adapter
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 3001
 
