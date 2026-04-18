@@ -38,6 +38,7 @@ describe('AuditService', () => {
           action: 'ASSET_CREATED',
           actorId: 'user-1',
           assetId: 'asset-1',
+          organizationId: null,
           changes: { before: null, after: { name: 'Laptop' } },
         },
       })
@@ -95,7 +96,7 @@ describe('AuditService', () => {
       expect(result.meta).toEqual({ total: 2, page: 1, perPage: 50 })
       expect(mockDb.auditLog.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { asset: { organizationId: 'org-1' } },
+          where: { OR: [{ asset: { organizationId: 'org-1' } }, { organizationId: 'org-1' }] },
           skip: 0,
           take: 50,
         }),

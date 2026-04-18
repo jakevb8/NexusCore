@@ -87,17 +87,20 @@ model Asset {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  action    String   // e.g., "ASSET_CREATED", "ASSET_UPDATED", "ASSET_DELETED"
-  actorId   String?
-  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
-  changes   Json     // { before: {...}, after: {...} }
-  assetId   String?
-  asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  timestamp DateTime @default(now())
+  id             String   @id @default(uuid())
+  action         String   // e.g., "ASSET_CREATED", "ASSET_UPDATED", "ASSET_DELETED", "ORG_DELETED"
+  actorId        String?
+  actor          User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  changes        Json     // { before: {...}, after: {...} }
+  assetId        String?
+  asset          Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  // Plain text (no FK) so org-level events survive after the org row is deleted
+  organizationId String?
+  timestamp      DateTime @default(now())
 
   @@index([assetId])
   @@index([actorId])
+  @@index([organizationId])
   @@index([timestamp])
   @@map("audit_logs")
 }

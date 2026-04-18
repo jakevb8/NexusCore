@@ -30,6 +30,11 @@ const mockFirebaseApp = {
   auth: () => ({ verifyIdToken: mockVerifyIdToken, deleteUser: mockDeleteUser }),
 }
 
+// Mock AuditService
+const mockAuditService = {
+  log: vi.fn(),
+}
+
 // Helpers
 const VALID_TOKEN = 'valid-firebase-token'
 const makeDecoded = (uid: string, email: string) => ({ uid, email })
@@ -39,7 +44,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    service = new AuthService(mockDb as any, mockFirebaseApp as any)
+    service = new AuthService(mockDb as any, mockFirebaseApp as any, mockAuditService as any)
   })
 
   describe('registerNewOrganization', () => {
@@ -308,16 +313,54 @@ describe('AuthService', () => {
       organizationId: 'org-1',
       role: 'ORG_MANAGER',
     }
+    const existingOrg = { id: 'org-1', name: 'Acme Corp' }
 
     it('deletes user and org when user is the last member', async () => {
       mockDb.user.findUnique.mockResolvedValue(existingUser)
       mockDb.user.count.mockResolvedValue(1) // only one member
+      mockDb.organization.findUnique.mockResolvedValue(existingOrg)
       mockDeleteUser.mockResolvedValue(undefined)
 
       await service.deleteAccount('user-1')
 
       expect(mockTx.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } })
       expect(mockTx.organization.delete).toHaveBeenCalledWith({ where: { id: 'org-1' } })
+      expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-1')
+    })
+
+    it('writes ORG_DELETED audit log with actor email when last member deletes account', async () => {
+      mockDb.user.findUnique.mockResolvedValue(existingUser)
+      mockDb.user.count.mockResolvedValue(1)
+      mockDb.organization.findUnique.mockResolvedValue(existingOrg)
+      mockDeleteUser.mockResolvedValue(undefined)
+
+      await service.deleteAccount('user-1')
+
+      expect(mockAuditService.log).toHaveBeenCalledWith({
+        action: 'ORG_DELETED',
+        actorId: 'user-1',
+        organizationId: 'org-1',
+        changes: {
+          before: {
+            organizationId: 'org-1',
+            organizationName: 'Acme Corp',
+            actorEmail: 'admin@acme.com',
+          },
+          after: null,
+        },
+      })
+    })
+
+    it('does not write ORG_DELETED audit log when other members remain', async () => {
+      mockDb.user.findUnique.mockResolvedValue(existingUser)
+      mockDb.user.count.mockResolvedValue(3) // three members
+      mockDeleteUser.mockResolvedValue(undefined)
+
+      await service.deleteAccount('user-1')
+
+      expect(mockTx.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } })
+      expect(mockTx.organization.delete).not.toHaveBeenCalled()
+      expect(mockAuditService.log).not.toHaveBeenCalled()
       expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-1')
     })
 
@@ -343,6 +386,7 @@ describe('AuthService', () => {
     it('still resolves successfully when Firebase deleteUser fails', async () => {
       mockDb.user.findUnique.mockResolvedValue(existingUser)
       mockDb.user.count.mockResolvedValue(1)
+      mockDb.organization.findUnique.mockResolvedValue(existingOrg)
       mockDeleteUser.mockRejectedValue(new Error('Firebase error'))
 
       // Should not throw — Firebase failure is best-effort

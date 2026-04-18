@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { PrismaClient, User } from '@nexus-core/database'
 import * as admin from 'firebase-admin'
+import { AuditService } from '../audit/audit.service'
 
 export interface RegisterDto {
   organizationName: string
@@ -26,6 +27,7 @@ export class AuthService {
   constructor(
     @Inject('PRISMA') private readonly db: PrismaClient,
     @Inject('FIREBASE_ADMIN') private readonly firebaseApp: admin.app.App,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -180,7 +182,7 @@ export class AuthService {
    * Delete the calling user's account:
    *   1. Delete the user row (AuditLog.actorId → SetNull via Prisma cascade).
    *   2. If they were the last member of their org, delete the org too
-   *      (cascades assets, invites).
+   *      (cascades assets, invites) and write an ORG_DELETED audit log.
    *   3. Delete the Firebase Auth record.
    */
   async deleteAccount(userId: string): Promise<void> {
@@ -190,6 +192,26 @@ export class AuthService {
     const remainingMembers = await this.db.user.count({
       where: { organizationId: user.organizationId },
     })
+
+    if (remainingMembers === 1) {
+      // Fetch org details before deletion for the audit log.
+      const org = await this.db.organization.findUnique({ where: { id: user.organizationId } })
+
+      // Write the audit log entry before the transaction so actorId is still valid.
+      await this.auditService.log({
+        action: 'ORG_DELETED',
+        actorId: user.id,
+        organizationId: user.organizationId,
+        changes: {
+          before: {
+            organizationId: user.organizationId,
+            organizationName: org?.name ?? null,
+            actorEmail: user.email,
+          },
+          after: null,
+        },
+      })
+    }
 
     await this.db.$transaction(async (tx) => {
       await tx.user.delete({ where: { id: userId } })

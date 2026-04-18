@@ -5,6 +5,7 @@ interface LogPayload {
   action: string
   actorId: string
   assetId?: string
+  organizationId?: string
   changes: { before: unknown; after: unknown }
 }
 
@@ -18,6 +19,7 @@ export class AuditService {
         action: payload.action,
         actorId: payload.actorId,
         assetId: payload.assetId ?? null,
+        organizationId: payload.organizationId ?? null,
         changes: payload.changes as any,
       },
     })
@@ -41,10 +43,15 @@ export class AuditService {
   async findAll(organizationId: string, page = 1, perPage = 50) {
     const skip = (page - 1) * perPage
 
-    // Join through asset to enforce org-level scoping
+    // Scope to the org: either via an asset that belongs to the org (asset-level events)
+    // or via the direct organizationId field (org-level events such as ORG_DELETED).
+    const where = {
+      OR: [{ asset: { organizationId } }, { organizationId }],
+    }
+
     const [data, total] = await Promise.all([
       this.db.auditLog.findMany({
-        where: { asset: { organizationId } },
+        where,
         include: {
           actor: { select: { id: true, email: true, displayName: true } },
           asset: { select: { id: true, name: true, sku: true } },
@@ -53,7 +60,7 @@ export class AuditService {
         skip,
         take: perPage,
       }),
-      this.db.auditLog.count({ where: { asset: { organizationId } } }),
+      this.db.auditLog.count({ where }),
     ])
 
     return { data, meta: { total, page, perPage } }
